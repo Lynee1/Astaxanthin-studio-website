@@ -1,0 +1,1130 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Astaxanthin Industrial Decision Studio</title>
+<meta name="description" content="Astaxanthin Industrial Decision Studio：雨生红球藻虾青素生产的转段与采收决策演示工具，含两阶段光驱动模型、不确定性区间、风险门控与经济情景。">
+<meta property="og:title" content="Astaxanthin Industrial Decision Studio">
+<meta property="og:description" content="雨生红球藻转段 / 采收决策演示：可解释模型、风险门控、经济情景。演示版，参数未经企业校准。">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#0e3a38">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+@font-face{font-family:"Barlow";font-style:normal;font-weight:500;font-display:swap;src:url(fonts/barlow-latin-500-normal.woff2) format("woff2")}
+@font-face{font-family:"Barlow";font-style:normal;font-weight:600;font-display:swap;src:url(fonts/barlow-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:"Barlow";font-style:normal;font-weight:700;font-display:swap;src:url(fonts/barlow-latin-700-normal.woff2) format("woff2")}
+@font-face{font-family:"IBM Plex Mono";font-style:normal;font-weight:400;font-display:swap;src:url(fonts/ibm-plex-mono-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"IBM Plex Mono";font-style:normal;font-weight:500;font-display:swap;src:url(fonts/ibm-plex-mono-latin-500-normal.woff2) format("woff2")}
+/* Layout: dark-teal operator header + tabs; light working canvas; single astaxanthin accent reserved for decisions */
+:root{
+  --bg:#f1f5f3; --surface:#ffffff; --surface-2:#e7eeeb; --fg:#132220; --muted:#55685f; --line:#d2ded9;
+  --ink:#0e3a38; --ink-2:#14504d; --ink-fg:#e7f2ef; --ink-muted:#a2c3bb;
+  --algae:#2c8656; --accent:#cf4519; --accent-soft:#f7e1d7;
+  --ok:#2c8656; --warn:#a86f07; --crit:#b92c22; --ok-bg:#e0f0e6; --warn-bg:#f7ecd2; --crit-bg:#f6dddb;
+  --band:#5e9a8c; --grey:#8a9a95;
+  --f-display:"Barlow","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC","Noto Sans SC","Source Han Sans SC",system-ui,sans-serif;
+  --f-body:"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC","Noto Sans SC","Source Han Sans SC",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0b1413; --surface:#12201e; --surface-2:#192b28; --fg:#e1ebe8; --muted:#93a8a1; --line:#273f3a;
+  --ink:#09272a; --ink-2:#0f3a3a; --ink-fg:#e7f2ef; --ink-muted:#8db2a9;
+  --algae:#5cbf86; --accent:#f06b3d; --accent-soft:#3b2118;
+  --ok:#5cbf86; --warn:#e2a93b; --crit:#f2695c; --ok-bg:#15301f; --warn-bg:#33280e; --crit-bg:#3a1a17;
+  --band:#4f8a7c; --grey:#6f817c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b1413; --surface:#12201e; --surface-2:#192b28; --fg:#e1ebe8; --muted:#93a8a1; --line:#273f3a;
+  --ink:#09272a; --ink-2:#0f3a3a; --ink-fg:#e7f2ef; --ink-muted:#8db2a9;
+  --algae:#5cbf86; --accent:#f06b3d; --accent-soft:#3b2118;
+  --ok:#5cbf86; --warn:#e2a93b; --crit:#f2695c; --ok-bg:#15301f; --warn-bg:#33280e; --crit-bg:#3a1a17;
+  --band:#4f8a7c; --grey:#6f817c; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14.5px;line-height:1.6}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--ink)}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.25}
+h2{font-size:1.5rem;font-weight:700}
+h3{font-size:1.02rem;font-weight:600}
+p{margin:0}
+a{color:var(--algae)}
+.mono,.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+/* header */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--ink);color:var(--ink-fg)}
+.top-in{display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding-block:10px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand-mark{width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ffb38f 0,var(--accent) 45%,#7a1f08 100%);box-shadow:0 0 0 3px rgba(92,191,134,.55);flex:none}
+.brand-name{font-family:var(--f-display);font-weight:700;font-size:1.02rem;letter-spacing:.01em}
+.brand-sub{font-size:.76rem;color:var(--ink-muted)}
+.tabs{display:flex;gap:2px;overflow-x:auto;margin-left:auto;scrollbar-width:none;max-width:100%}
+.tabs button{all:unset;cursor:pointer;padding:7px 12px;border-radius:6px;font-size:.88rem;color:var(--ink-muted);white-space:nowrap}
+.tabs button:hover{color:var(--ink-fg);background:var(--ink-2)}
+.tabs button[aria-selected="true"]{color:var(--ink-fg);background:var(--ink-2);box-shadow:inset 0 -2px 0 var(--accent)}
+.tabs button:focus-visible,.btn:focus-visible,.chipbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.statusbar{background:var(--surface);border-bottom:1px solid var(--line)}
+.sb-in{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;padding-block:8px;font-size:.82rem;color:var(--muted)}
+.sb-in b{color:var(--fg);font-weight:500}
+main.wrap{padding-block:24px 64px}
+.tab{display:flex;flex-direction:column;gap:20px}
+.sec-head{display:flex;flex-direction:column;gap:6px;max-width:72ch}
+.sec-head p{color:var(--muted)}
+/* tags */
+.tag{display:inline-block;font-size:.7rem;line-height:1;padding:3px 6px;border-radius:4px;font-weight:500;letter-spacing:.04em;vertical-align:middle;white-space:nowrap}
+.t-sim{background:var(--surface-2);color:var(--muted);border:1px dashed var(--grey)}
+.t-lit{background:var(--ok-bg);color:var(--ok)}
+.t-obs{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok)}
+.t-calc{background:var(--surface-2);color:var(--fg)}
+.t-pred{background:var(--accent-soft);color:var(--accent)}
+.t-assume{background:var(--warn-bg);color:var(--warn)}
+.gate{display:inline-flex;align-items:center;gap:6px;font-weight:600;padding:3px 10px;border-radius:999px;font-size:.8rem}
+.gate::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.g-green{background:var(--ok-bg);color:var(--ok)}
+.g-yellow{background:var(--warn-bg);color:var(--warn)}
+.g-red{background:var(--crit-bg);color:var(--crit)}
+/* buttons */
+.btn{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:8px 14px;border-radius:7px;font-weight:500;font-size:.9rem}
+.btn:hover{border-color:var(--algae)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.ghost{background:transparent;color:inherit;border-color:currentColor;opacity:.85}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:none}
+.btn.sm{padding:5px 10px;font-size:.82rem}
+/* hero */
+.hero{background:var(--ink);color:var(--ink-fg);border-radius:14px;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:28px;padding:32px;align-items:center}
+.eyebrow{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted)}
+.hero h1{font-size:clamp(1.7rem,3.4vw,2.5rem);font-weight:700;margin-block:8px 12px}
+.hero h1 em{font-style:normal;color:#ff9a70}
+.lede{color:var(--ink-fg);opacity:.92;max-width:52ch}
+.en{color:var(--ink-muted);font-size:.84rem;margin-top:10px;max-width:60ch;font-style:italic}
+.cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.hero .btn:not(.primary){background:transparent;color:var(--ink-fg);border-color:var(--ink-muted)}
+.hero-fig{margin:0;min-width:0}
+.hero-fig svg{width:100%;height:auto;display:block;border-radius:10px}
+.hero-fig figcaption{font-size:.75rem;color:var(--ink-muted);margin-top:6px}
+/* cards */
+.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px;min-width:0;display:flex;flex-direction:column;gap:10px}
+.card .note,.note{font-size:.8rem;color:var(--muted)}
+.q-card h3{font-size:1.05rem}
+.q-card p{color:var(--muted);font-size:.88rem}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.kpis.k3{grid-template-columns:repeat(3,minmax(0,1fr))}
+#mapFields .field{grid-template-columns:minmax(0,1fr) 150px}
+@media (max-width:640px){.kpis.k3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.kpi .k-l{font-size:.78rem;color:var(--muted);display:flex;justify-content:space-between;gap:6px;align-items:center}
+.kpi .k-v{font-family:var(--f-mono);font-size:1.35rem;font-weight:500;font-variant-numeric:tabular-nums;line-height:1.2}
+.kpi .k-u{font-size:.74rem;color:var(--muted)}
+.kpi.accent{border-color:var(--accent)}
+.kpi.accent .k-v{color:var(--accent)}
+.flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.flow div{padding:12px 14px;border-right:1px solid var(--line);font-size:.84rem;min-width:0}
+.flow div:last-child{border-right:0}
+.flow b{display:block;font-family:var(--f-display);font-size:.95rem;margin-bottom:2px}
+.flow .f-g{box-shadow:inset 0 3px 0 var(--algae)}
+.flow .f-r{box-shadow:inset 0 3px 0 var(--accent)}
+.flow .f-n{box-shadow:inset 0 3px 0 var(--grey)}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;counter-reset:s;list-style:none;padding:0;margin:0}
+.steps li{counter-increment:s;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px 12px 44px;position:relative;font-size:.86rem;min-width:0}
+.steps li::before{content:counter(s);position:absolute;left:14px;top:12px;font-family:var(--f-mono);font-weight:500;color:var(--accent)}
+.steps b{display:block}
+/* sim */
+.sim-grid{display:grid;grid-template-columns:300px minmax(0,1fr);gap:18px;align-items:start}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.controls{position:sticky;top:calc(env(safe-area-inset-top,0px) + 70px);max-height:calc(100vh - 90px);overflow:auto}
+.fgroup{display:flex;flex-direction:column;gap:9px;border-top:1px solid var(--line);padding-top:10px}
+.fgroup:first-of-type{border-top:0;padding-top:0}
+.fgroup > .glabel{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.field{display:grid;grid-template-columns:minmax(0,1fr) 112px;gap:8px;align-items:center;font-size:.84rem}
+.field label{min-width:0}
+.field label small{display:block;color:var(--muted);font-size:.72rem;line-height:1.3}
+input[type=number],select,textarea,input[type=text]{font:inherit;font-size:.85rem;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:5px 7px;width:100%;min-width:0}
+input[type=number]{font-family:var(--f-mono)}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--algae);outline-offset:0}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.range-row{display:flex;justify-content:space-between;font-size:.84rem;align-items:baseline}
+.range-row output{font-family:var(--f-mono);color:var(--accent);font-weight:500}
+.sim-out{display:flex;flex-direction:column;gap:14px;min-width:0}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+.rec{border-radius:10px;padding:14px 18px;border:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;gap:6px}
+.rec.lv-green{border-left:5px solid var(--ok)}
+.rec.lv-yellow{border-left:5px solid var(--warn);background:var(--warn-bg)}
+.rec.lv-red{border-left:5px solid var(--crit);background:var(--crit-bg)}
+.rec .r-h{font-family:var(--f-display);font-size:1.15rem;font-weight:700}
+.rec .r-s{font-size:.86rem;color:var(--muted)}
+.rec .r-s b{color:var(--fg)}
+/* charts */
+.chart-wrap{position:relative}
+.chart-wrap svg{width:100%;height:auto;display:block;overflow:visible}
+svg .grid{stroke:var(--line);stroke-width:1}
+svg .axis{stroke:var(--grey);stroke-width:1}
+svg .ax{fill:var(--muted);font-size:11px;font-family:var(--f-mono)}
+svg .ax-l{fill:var(--muted);font-size:11px;font-family:var(--f-body)}
+svg .hov{stroke:var(--grey);stroke-width:1}
+.tip{position:absolute;top:6px;pointer-events:none;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:.76rem;box-shadow:0 4px 14px rgba(0,0,0,.12);white-space:nowrap;z-index:2;font-variant-numeric:tabular-nums}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.76rem;color:var(--muted);margin-top:4px}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{display:inline-block;width:16px;height:3px;border-radius:2px}
+.legend i.dash{background:transparent!important;border-top:2px dashed}
+.legend i.pt{width:9px;height:9px;border-radius:50%;border:2px solid;background:transparent!important}
+.legend i.bd{height:9px;opacity:.35}
+.empty{padding:28px 10px;text-align:center;color:var(--muted);font-size:.86rem;border:1px dashed var(--line);border-radius:8px}
+.disabled-overlay{position:relative}
+.disabled-overlay::after{content:attr(data-msg);position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;background:color-mix(in srgb,var(--surface) 82%,transparent);color:var(--crit);font-weight:600;border-radius:8px}
+/* tables */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:.82rem}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--surface-2);font-weight:500;color:var(--muted);font-size:.76rem;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.n{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.lv{font-weight:600;font-size:.76rem;white-space:nowrap}
+.lv.green{color:var(--ok)}.lv.yellow{color:var(--warn)}.lv.red{color:var(--crit)}
+.lv.info{color:var(--muted)}
+/* chips */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chipbtn{font:inherit;font-size:.85rem;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:6px 12px;border-radius:999px}
+.chipbtn[aria-pressed="true"]{background:var(--ink);color:var(--ink-fg);border-color:var(--ink)}
+.toggles{display:flex;flex-wrap:wrap;gap:10px 22px;font-size:.86rem;align-items:center}
+.toggles label{display:inline-flex;gap:6px;align-items:center}
+.rob-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:14px;align-items:start}
+.gate-big{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.gate-big .gate{font-size:1rem;padding:6px 14px}
+ul.clean{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.issues{display:flex;flex-direction:column;gap:4px;max-height:220px;overflow:auto;font-size:.82rem}
+.issues div{display:grid;grid-template-columns:66px 52px minmax(0,1fr);gap:8px}
+textarea{font-family:var(--f-mono);font-size:.78rem;min-height:120px;resize:vertical}
+.data-grid{display:grid;grid-template-columns:340px minmax(0,1fr);gap:18px;align-items:start}
+.three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.econ-grid{display:grid;grid-template-columns:320px minmax(0,1fr);gap:18px;align-items:start}
+.prose{max-width:76ch;display:flex;flex-direction:column;gap:10px}
+.prose p,.prose li{font-size:.92rem}
+.prose h3{margin-top:8px}
+.crit-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.crit-list .card h3{font-size:.98rem}
+.crit-list .card p{font-size:.86rem;color:var(--muted)}
+.crit-list .card p b{color:var(--fg);font-weight:500}
+.dir{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.dir .card .pri{font-size:.72rem;letter-spacing:.08em;color:var(--accent);font-weight:600;text-transform:uppercase}
+.stage-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.stage{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--surface)}
+.stage.done{border-color:var(--ok)}
+.stage b{font-family:var(--f-display)}
+.stage .s-st{font-size:.78rem;font-weight:600}
+code{font-family:var(--f-mono);font-size:.85em;background:var(--surface-2);padding:1px 4px;border-radius:4px}
+.formula{font-family:var(--f-mono);font-size:.82rem;background:var(--surface-2);border-radius:8px;padding:10px 12px;overflow-x:auto;white-space:pre;line-height:1.7}
+@media (max-width:980px){
+  .hero{grid-template-columns:1fr;padding:22px}
+  .sim-grid,.data-grid,.econ-grid,.rob-grid{grid-template-columns:1fr}
+  .controls{position:static;max-height:none}
+  .grid-3,.steps,.three{grid-template-columns:1fr}
+  .flow{grid-template-columns:1fr}
+  .flow div{border-right:0;border-bottom:1px solid var(--line)}
+  .two,.crit-list,.dir,.stage-row{grid-template-columns:1fr}
+  .tabs{margin-left:0;width:100%}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<style>[hidden]{display:none!important}body{margin:0}img,svg{max-width:100%}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+</head>
+<body>
+
+
+<header class="top"><div class="wrap top-in">
+  <div class="brand"><span class="brand-mark" aria-hidden="true"></span>
+    <div><div class="brand-name">Astaxanthin Industrial Decision Studio</div><div class="brand-sub">雨生红球藻 · 转段 / 采收决策 · 风险门控 · v0.1 演示版</div></div></div>
+  <nav class="tabs" role="tablist" aria-label="页面">
+    <button role="tab" data-tab="overview" aria-selected="true">总览</button>
+    <button role="tab" data-tab="simulate">批次决策</button>
+    <button role="tab" data-tab="robust">工况鲁棒性</button>
+    <button role="tab" data-tab="data">数据与校准</button>
+    <button role="tab" data-tab="value">经济价值</button>
+    <button role="tab" data-tab="evidence">模型与证据</button>
+    <button role="tab" data-tab="review">方案评审</button>
+  </nav>
+</div></header>
+<div class="statusbar"><div class="wrap sb-in">
+  <span id="sbMode"><span class="tag t-sim">演示</span> 尚无企业数据，参数为文献约束假设值</span>
+  <span>情景 <b id="sbScn">正常工况</b></span>
+  <span id="sbGate" class="gate g-green">门控：可优化</span>
+  <span>标识：<span class="tag t-obs">实测</span> <span class="tag t-lit">文献</span> <span class="tag t-calc">计算</span> <span class="tag t-sim">模拟</span> <span class="tag t-pred">预测</span> <span class="tag t-assume">假设</span></span>
+</div></div>
+
+<main class="wrap">
+
+<!-- ================= OVERVIEW ================= -->
+<section class="tab" id="tab-overview">
+  <div class="hero">
+    <div>
+      <p class="eyebrow">企业试点决策工具 · 低硬件依赖</p>
+      <h1>何时转段、何时采收，<br>用<em>全周期产率</em>来决定</h1>
+      <p class="lede">把已有的人工记录（生物量、虾青素含量、温度、光照）接入一个可解释的两阶段光驱动模型，比较候选转段日与采收日，并在高温、阴雨、数据缺失时自动降级为保守建议或人工介入。</p>
+      <p class="en">Improve astaxanthin productivity and harvest decisions using existing production data, with minimal additional hardware and reliable operation under variable cultivation conditions.</p>
+      <div class="cta">
+        <button class="btn primary" data-go="data">上传我的生产数据</button>
+        <button class="btn" data-go="simulate">打开批次决策</button>
+        <button class="btn" data-go="review">方案评审与试点路线</button>
+      </div>
+    </div>
+    <figure class="hero-fig">
+      <svg viewBox="0 0 520 300" role="img" aria-label="概念示意：管式光生物反应器中藻液由绿色转为红色">
+        <defs>
+          <linearGradient id="tubeG" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0" style="stop-color:#3aa66b"/><stop offset=".45" style="stop-color:#5bb36a"/>
+            <stop offset=".62" style="stop-color:#b9822f"/><stop offset="1" style="stop-color:#d4471b"/>
+          </linearGradient>
+          <linearGradient id="skyG" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" style="stop-color:#174f4c"/><stop offset="1" style="stop-color:#0b2f2e"/>
+          </linearGradient>
+        </defs>
+        <rect width="520" height="300" style="fill:url(#skyG)"/>
+        <circle cx="452" cy="52" r="24" style="fill:#f6c26b;fill-opacity:.9"/>
+        <circle cx="452" cy="52" r="40" style="fill:#f6c26b;fill-opacity:.12"/>
+        <rect x="18" y="246" width="484" height="36" rx="4" style="fill:#0a2524"/>
+        <g id="tubes"></g>
+        <rect x="26" y="64" width="18" height="190" rx="4" style="fill:#2d6b66"/>
+        <rect x="476" y="64" width="18" height="190" rx="4" style="fill:#2d6b66"/>
+        <g style="font-family:var(--f-body);font-size:12px">
+          <text x="60" y="275" style="fill:#9fd6b5">绿色增殖</text>
+          <text x="214" y="275" style="fill:#e6d39a">转段（去氮 / 提光）</text>
+          <text x="398" y="275" style="fill:#ffab86">红色诱导</text>
+        </g>
+      </svg>
+      <figcaption>概念示意，非实拍：管式光生物反应器内藻液由绿色增殖转入红色诱导。</figcaption>
+    </figure>
+  </div>
+
+  <div class="sec-head"><h2>当前模型候选方案</h2>
+    <p>以下数值来自文献约束的两阶段模型在当前工况下的<b>模拟</b>，尚未用企业数据校准，只用于演示决策逻辑。生产率按“反应器体积 · 天”口径计入转段稀释与周转时间。</p></div>
+  <div class="kpis" id="ovKpis"></div>
+
+  <div class="grid-3">
+    <div class="card q-card"><h3>现在该转段了吗？</h3><p>绿色期多养几天能提高细胞密度，但也推迟诱导、占用反应器。模型比较每个转段日对应的全周期产率，而不是只看某一天的密度。</p></div>
+    <div class="card q-card"><h3>红色期再养几天值不值？</h3><p>虾青素含量还在上升，但边际增量会被反应器占用时间稀释。最优采收点出现在“边际产量 = 平均产率”的位置，并附不确定区间。</p></div>
+    <div class="card q-card"><h3>天气变了，建议还可信吗？</h3><p>高温、阴雨、测量中断、设备故障或疑似污染时，系统按规则降级：绿色可优化，黄色仅保守建议，红色停止优化转人工。</p></div>
+  </div>
+
+  <div class="flow">
+    <div class="f-g"><b>绿色增殖</b>光限制 Logistic 生长，含光衰减与温度响应</div>
+    <div class="f-n"><b>转段</b>去氮/稀释/提光；稀释比计入体积核算</div>
+    <div class="f-r"><b>红色诱导</b>含量按平均光强饱和积累，高温抑制</div>
+    <div class="f-r"><b>采收</b>按全周期产率选日，附 P10–P90 区间</div>
+    <div class="f-n"><b>破壁提取</b>本版仅用回收率参数近似，未建模</div>
+  </div>
+
+  <div class="sec-head"><h2>60 秒演示路径</h2></div>
+  <ol class="steps">
+    <li><b>问题</b>转段与采收靠经验，工况波动使产率和周期不稳定。</li>
+    <li><b>输入</b>在“数据与校准”载入一组培养记录，无需先购置设备。</li>
+    <li><b>分析</b>在“批次决策”区分实测与预测，比较候选采收日及不确定性。</li>
+    <li><b>鲁棒</b>切到高温 / 阴雨 / 数据缺失，观察门控降级与人工回退。</li>
+    <li><b>商业价值</b>在“经济价值”把产率差异换算为年产量与利润情景，标明待验证。</li>
+    <li><b>合作请求</b>1 个藻株、现有 SOP、两到三批连续检测数据、一轮转段对照试验。</li>
+  </ol>
+</section>
+
+<!-- ================= SIMULATE ================= -->
+<section class="tab" id="tab-simulate" hidden>
+  <div class="sec-head"><h2>批次决策：转段日与采收日</h2>
+    <p>调整工艺条件，模型实时给出生物量、虾青素浓度和全周期生产率曲线。阴影带为参数不确定性的 P10–P90 区间（蒙特卡洛）。</p></div>
+  <div class="sim-grid">
+    <form class="panel controls" id="simForm" autocomplete="off">
+      <div class="fgroup"><div class="glabel">工艺模式</div>
+        <div class="field"><label for="f_mode">转段方式</label>
+          <select id="f_mode"><option value="sep">绿 / 红分罐</option><option value="same">同罐转段</option></select></div>
+        <div class="field"><label for="f_D">转段稀释比 <small>红色期密度 ÷ 绿色末密度（1 = 不稀释）</small></label><input type="number" id="f_D" value="1" min="0.2" max="1" step="0.05"></div>
+      </div>
+      <div class="fgroup"><div class="glabel">光与反应器</div>
+        <div class="field"><label for="f_L">光程 <small>cm</small></label><input type="number" id="f_L" value="5" min="1" max="30" step="0.5"></div>
+        <div class="field"><label for="f_Ig">绿色期入射光 <small>µmol photons m⁻² s⁻¹</small></label><input type="number" id="f_Ig" value="150" min="10" max="1500" step="10"></div>
+        <div class="field"><label for="f_Ir">红色期入射光 <small>µmol photons m⁻² s⁻¹</small></label><input type="number" id="f_Ir" value="800" min="50" max="2500" step="50"></div>
+        <div class="field"><label for="f_photo">光照时长 <small>h / d</small></label><input type="number" id="f_photo" value="14" min="4" max="24" step="1"></div>
+      </div>
+      <div class="fgroup"><div class="glabel">温度与接种</div>
+        <div class="field"><label for="f_Tg">绿色期温度 <small>°C</small></label><input type="number" id="f_Tg" value="22" min="10" max="35" step="0.5"></div>
+        <div class="field"><label for="f_Tr">红色期温度 <small>°C</small></label><input type="number" id="f_Tr" value="25" min="10" max="35" step="0.5"></div>
+        <div class="field"><label for="f_X0">接种生物量 <small>g DW L⁻¹</small></label><input type="number" id="f_X0" value="0.1" min="0.01" max="1" step="0.01"></div>
+      </div>
+      <div class="fgroup"><div class="glabel">周转与诱导上限</div>
+        <div class="field"><label for="f_turnG">绿色罐周转 <small>清洗 / 接种，d</small></label><input type="number" id="f_turnG" value="2" min="0" max="10" step="0.5"></div>
+        <div class="field"><label for="f_turnR">红色罐周转 <small>采收 / 清洗，d</small></label><input type="number" id="f_turnR" value="2" min="0" max="10" step="0.5"></div>
+        <div class="field"><label for="f_qmax">含量上限 qmax <small>mg g⁻¹ DW（假设）</small></label><input type="number" id="f_qmax" value="35" min="10" max="70" step="1"></div>
+      </div>
+      <div class="fgroup"><div class="glabel">决策变量</div>
+        <div class="range-row"><label for="f_ts">转段日（绿色期天数）</label><output id="o_ts">10</output></div>
+        <input type="range" id="f_ts" min="4" max="20" step="1" value="10">
+        <button type="button" class="btn sm" id="btnBestTs">采用模型最优转段日</button>
+      </div>
+    </form>
+
+    <div class="sim-out">
+      <div class="rec" id="simRec"></div>
+      <div class="kpis k3" id="simKpis"></div>
+      <div class="card"><h3>全周期生产率 vs 采收日 <span class="tag t-sim">模拟</span></h3>
+        <div id="chProd"></div>
+        <p class="note">实线：反应器体积 · 天口径（计入转段稀释与两罐周转）。虚线：原方案公式 AXT_mg_L ÷ 总天数。点线：文献中常见的“仅红色期”口径，会显著高估全周期产率，不能直接与前两者比较。</p>
+      </div>
+      <div class="two">
+        <div class="card"><h3>生物量 <span class="tag t-sim">模拟</span></h3><div id="chX"></div></div>
+        <div class="card"><h3>虾青素浓度 <span class="tag t-sim">模拟</span></h3><div id="chA"></div></div>
+      </div>
+      <div class="card"><h3>转段日 × 红色期时长：全周期生产率 <span class="tag t-sim">模拟</span></h3>
+        <div id="chHeat"></div>
+        <p class="note">颜色越深产率越高（mg L⁻¹ d⁻¹，名义参数）。实框为全局最优，虚框为当前转段日所在行。悬停查看数值。转段时间的真实效果需由不同转段处理组的对照数据确认，单一批次无法证明因果。</p>
+      </div>
+      <div class="card"><h3>与文献范围的合理性检查</h3><div id="sanity"></div>
+        <p class="note">文献范围来自 Shah 等 2016 表 4 对多项研究的汇总（二手数据，口径不一）。落在范围内只说明量级合理，不代表模型已验证。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ROBUST ================= -->
+<section class="tab" id="tab-robust" hidden>
+  <div class="sec-head"><h2>工况鲁棒性与决策门控</h2>
+    <p>以下场景均为<b>模拟压力测试</b>。系统没有接入传感器或污染检测设备，设备故障与污染只来自操作员标记，模型不会自称“自动检测”。</p></div>
+  <div class="card">
+    <h3>选择情景</h3>
+    <div class="chips" id="scnChips"></div>
+    <div class="toggles">
+      <label for="f_gap">距上次有效生物量 / 虾青素测量 <output id="o_gap" class="mono">0</output> 天</label>
+      <input type="range" id="f_gap" min="0" max="10" step="1" value="0" style="max-width:200px">
+      <label><input type="checkbox" id="f_offline"> 断网（天气用缓存）</label>
+      <label><input type="checkbox" id="f_fault"> 操作员标记：设备故障</label>
+      <label><input type="checkbox" id="f_contam"> 操作员标记：疑似污染（镜检）</label>
+    </div>
+  </div>
+  <div class="rob-grid">
+    <div class="card">
+      <div class="gate-big"><span id="gateBig" class="gate g-green">可优化</span><span id="gateWhy" class="note"></span></div>
+      <div class="tbl-wrap"><table id="gateRules"></table></div>
+      <div id="gateActions"></div>
+    </div>
+    <div class="sim-out">
+      <div class="card"><h3>情景工况：温度 <span class="tag t-sim">模拟</span></h3><div id="chT"></div></div>
+      <div class="card"><h3>情景工况：入射光 <span class="tag t-sim">模拟</span></h3><div id="chI"></div></div>
+      <div class="card"><h3>对产率的影响 <span class="tag t-sim">模拟</span></h3><div id="robImpact"></div></div>
+    </div>
+  </div>
+  <div class="card"><div class="row" style="justify-content:space-between"><h3>审计记录</h3><button class="btn sm" id="btnCopyAudit" type="button">复制审计记录 CSV</button></div>
+    <div class="tbl-wrap"><table id="auditTbl"></table></div>
+    <p class="note">每次门控结论变化时记录一条：时间、情景、等级、触发规则、使用的观测值。试点阶段所有安全相关建议须由操作员确认后执行。</p></div>
+</section>
+
+<!-- ================= DATA ================= -->
+<section class="tab" id="tab-data" hidden>
+  <div class="sec-head"><h2>数据与校准</h2>
+    <p>上传企业 CSV，系统做字段映射、格式与单位检查，然后按批次计算配对虾青素浓度与生产率。只有时间序列足够时才开放采收窗口预测；只有单个虾青素终点时，只报告已观测值。</p></div>
+  <div class="data-grid">
+    <div class="panel">
+      <div class="fgroup"><div class="glabel">载入数据</div>
+        <label class="btn" for="fileIn" style="text-align:center">选择 CSV 文件</label>
+        <input type="file" id="fileIn" accept=".csv,.txt,text/csv" hidden>
+        <div class="row">
+          <button class="btn sm" type="button" id="btnSampleA">示例 A：两批完整时序</button>
+          <button class="btn sm" type="button" id="btnSampleB">示例 B：单个虾青素终点</button>
+          <button class="btn sm" type="button" id="btnSampleC">示例 C：含错误数据</button>
+        </div>
+        <p class="note">三组示例均为<b>由模型加噪声生成的合成数据，不是实测</b>，仅用于演示检查与拟合流程。</p>
+        <label for="csvText" class="note">或粘贴 CSV 文本</label>
+        <textarea id="csvText" placeholder="Batch_ID,Day,Biomass_g_L,AXT_mg_g_DW"></textarea>
+        <button class="btn" type="button" id="btnParse">读取并识别字段</button>
+      </div>
+      <div class="fgroup" id="mapBox" hidden><div class="glabel">字段映射</div><div id="mapFields" style="display:flex;flex-direction:column;gap:8px"></div>
+        <button class="btn primary" type="button" id="btnApplyMap">应用映射并检查</button></div>
+      <div class="fgroup"><div class="glabel">生产率口径</div>
+        <div class="field"><label for="f_pre">Day 0 之前的天数 <small>如种子扩培，计入周期</small></label><input type="number" id="f_pre" value="0" min="0" step="1"></div>
+        <div class="field"><label for="f_turn">周转天数 <small>清洗、接种、采收</small></label><input type="number" id="f_turn" value="2" min="0" step="0.5"></div>
+        <p class="note">P_AXT = AXT_mg_L ÷ (Day + 前置天数 + 周转天数)。同罐批次适用；分罐稀释的批次请用“批次决策”中的体积 · 天口径。</p>
+      </div>
+      <div class="fgroup"><div class="glabel">企业采集模板</div>
+        <textarea id="tplOut" readonly></textarea>
+        <button class="btn sm" type="button" id="btnCopyTpl">复制模板 CSV</button>
+      </div>
+    </div>
+    <div class="sim-out">
+      <div class="card"><h3>数据质量报告</h3><div id="dqReport"><div class="empty">尚未载入数据。可先点“示例 A”。</div></div></div>
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <div class="row"><label for="batchSel">批次</label><select id="batchSel" style="width:auto"></select></div>
+          <div class="row"><button class="btn primary" type="button" id="btnPredict" disabled>生成采收窗口预测</button></div>
+        </div>
+        <p class="note" id="predReason"></p>
+        <div id="batchInfo"></div>
+        <div class="three">
+          <div><h3>生物量</h3><div id="chDX"></div></div>
+          <div><h3>虾青素含量</h3><div id="chDQ"></div></div>
+          <div><h3>全周期生产率</h3><div id="chDP"></div></div>
+        </div>
+        <div id="predTable"></div>
+      </div>
+      <div class="card"><div class="row" style="justify-content:space-between"><h3>清洗后数据</h3><button class="btn sm" type="button" id="btnCopyClean">复制清洗后 CSV</button></div>
+        <textarea id="cleanOut" readonly placeholder="检查完成后在此生成；缺失值保留为空，不以 0 替代。"></textarea></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= VALUE ================= -->
+<section class="tab" id="tab-value" hidden>
+  <div class="sec-head"><h2>经济价值情景</h2>
+    <p>比较“经验策略”与“模型候选策略”的理论年产量与利润。所有成本与价格均为<b>示例假设</b>，请替换为企业实际值；理论培养量乘以回收率与合格率后才是可销售量。结果待现场验证。</p></div>
+  <div class="econ-grid">
+    <form class="panel" id="econForm" autocomplete="off">
+      <div class="fgroup"><div class="glabel">产线</div>
+        <div class="field"><label for="e_Vg">绿色罐总有效体积 <small>m³</small></label><input type="number" id="e_Vg" value="40" min="0.1" step="1"></div>
+        <div class="field"><label for="e_Vr">红色罐总有效体积 <small>m³（同罐模式下合并计算）</small></label><input type="number" id="e_Vr" value="60" min="0.1" step="1"></div>
+        <div class="field"><label for="e_days">年可运行天数 <small>d</small></label><input type="number" id="e_days" value="300" min="30" max="365" step="5"></div>
+      </div>
+      <div class="fgroup"><div class="glabel">经验策略（当前做法）</div>
+        <div class="field"><label for="e_tsCur">转段日 <small>d</small></label><input type="number" id="e_tsCur" value="8" min="4" max="20" step="1"></div>
+        <div class="field"><label for="e_hCur">采收日 <small>自接种起，d</small></label><input type="number" id="e_hCur" value="32" min="8" max="44" step="1"></div>
+      </div>
+      <div class="fgroup"><div class="glabel">回收与价格 <span class="tag t-assume">假设</span></div>
+        <div class="field"><label for="e_rec">下游回收率 <small>0–1</small></label><input type="number" id="e_rec" value="0.8" min="0" max="1" step="0.05"></div>
+        <div class="field"><label for="e_qual">批次合格率 <small>0–1</small></label><input type="number" id="e_qual" value="0.9" min="0" max="1" step="0.05"></div>
+        <div class="field"><label for="e_price">产品售价 <small>USD / kg 虾青素</small></label><input type="number" id="e_price" value="3000" min="0" step="100"></div>
+      </div>
+      <div class="fgroup"><div class="glabel">成本 <span class="tag t-assume">假设</span></div>
+        <div class="field"><label for="e_occ">反应器运行成本 <small>USD / m³ · d（电、CO₂、营养、人工分摊）</small></label><input type="number" id="e_occ" value="1.5" min="0" step="0.5"></div>
+        <div class="field"><label for="e_dsp">下游处理成本 <small>USD / kg 干藻粉</small></label><input type="number" id="e_dsp" value="15" min="0" step="1"></div>
+        <div class="field"><label for="e_fixed">年固定成本 <small>USD</small></label><input type="number" id="e_fixed" value="120000" min="0" step="10000"></div>
+      </div>
+      <p class="note">价格参考：文献报道天然虾青素价格约 2,500–7,000 USD/kg（Bauer &amp; Minceva 2019）；不同产品形态差异很大。</p>
+    </form>
+    <div class="sim-out">
+      <div class="card"><h3>策略对比 <span class="tag t-sim">模拟</span> <span class="tag t-assume">假设成本</span></h3>
+        <div class="tbl-wrap"><table id="econTbl"></table></div>
+        <p class="note" id="econNote"></p>
+        <div class="row"><button class="btn" type="button" id="btnSaveScn">保存此情景</button><button class="btn" type="button" id="btnCopyEcon">复制情景对比 CSV</button></div>
+      </div>
+      <div class="card"><h3>商务摘要</h3><div id="econSummary" class="prose"></div></div>
+      <div class="card"><h3>已保存情景</h3><div class="tbl-wrap"><table id="savedTbl"></table></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= EVIDENCE ================= -->
+<section class="tab" id="tab-evidence" hidden>
+  <div class="sec-head"><h2>模型与证据</h2>
+    <p>模型版本 <span class="mono">v0.1-demo（2026-10-20）</span>。参数为文献约束的假设值，尚未用任何企业批次校准，因此不能称为“已验证预测”。</p></div>
+  <div class="stage-row">
+    <div class="stage done"><b>产品可演示</b><div class="s-st lv green">已完成</div><p class="note">交互、门控、口径核算、数据检查可运行。</p></div>
+    <div class="stage"><b>模型已校准</b><div class="s-st lv yellow">未完成</div><p class="note">需 ≥3 批企业时序数据（同株、同反应器类型）。</p></div>
+    <div class="stage"><b>企业验证通过</b><div class="s-st lv yellow">未完成</div><p class="note">需独立批次前瞻验证 + 转段对照试验。</p></div>
+  </div>
+  <div class="card"><h3>模型结构</h3>
+<div class="formula">绿色期：dX/dt = μmax · f_I(Ī) · f_T(T) · φ · X · (1 − X / Xmax) − k_d · X
+光衰减：Ī = I₀ · (1 − e^(−Ka·X·L)) / (Ka·X·L)        φ = 光照时长 / 24
+光响应：f_I = Ī / (K_I + Ī + Ī² / K_inh)            温度：f_T = CTMI(T; Tmin, Topt, Tmax)
+转段：  X ← D · X （分罐稀释），红色罐体积 = 1/D 倍
+红色期：dX/dt = μ_r · Ī/(K_Ia+Ī) · f_Ta · φ · X · (1 − X/(g·X_s)) − k_d(T) · X
+        dq/dt = k_q · Ī/(K_Ia+Ī) · f_Ta · φ · (q_max − q)
+虾青素：A = X · q   [mg L⁻¹ = g L⁻¹ × mg g⁻¹]
+全周期生产率（体积·天口径）= (A_h / D) ÷ [(t_s + 周转_绿) + (t_h − t_s + 周转_红) / D]</div>
+    <p class="note">结构依据：积累速率随培养内平均辐照增加且需氮限制（García-Malea 等 2009）；高于约 30 °C 抑制积累（Appl Microbiol Biotechnol 2015）；不确定性用参数对数正态扰动的蒙特卡洛估计。</p>
+  </div>
+  <div class="card"><h3>参数表</h3><div class="tbl-wrap"><table id="paramTbl"></table></div></div>
+  <div class="card"><h3>禁用与降级条件</h3>
+    <ul class="clean">
+      <li>没有虾青素时间序列（≥4 点、跨度 ≥6 天）时，“采收窗口预测”按钮停用，只报告已观测最优日期。</li>
+      <li>生物量少于 5 个有效点时不拟合生长曲线；缺失值保持为空，从不以 0 代替。</li>
+      <li>最优采收日超出最后观测日 3 天以上时标记为外推，门控降为黄色。</li>
+      <li>连续 ≥2 天温度 ≥32 °C、设备故障或疑似污染标记、测量中断 &gt;4 天时，门控红色，停止优化。</li>
+      <li>仅样本内拟合时，RMSE 标注“样本内”；同批次后段留出检验只说明外推能力，不等于独立批次验证。</li>
+    </ul></div>
+  <div class="card"><h3>文献锚点 <span class="tag t-lit">文献</span></h3>
+    <p class="note">已通过检索核对到摘要或表格层级的来源。多数数值取自摘要或二手汇总，<b>不是原始时序数据</b>，因此用于约束参数量级和合理性检查，不用于训练。标注“待核实”的条目需获取全文后再纳入。</p>
+    <div class="tbl-wrap"><table id="litTbl"></table></div></div>
+</section>
+
+<!-- ================= REVIEW ================= -->
+<section class="tab" id="tab-review" hidden>
+  <div class="sec-head"><h2>方案评审：原开发 Prompt 的问题与更好的方向</h2>
+    <p>原文件的优点很明确：强调证据分级、不虚构数据、不承诺增产、低硬件依赖。下面是它在产业化落地上的主要缺口，以及这版 Demo 已经如何处理。</p></div>
+  <div class="crit-list">
+    <div class="card"><h3>范围过宽，MVP 失焦</h3><p>11 个 Sheet 的资产库、6 个页面、ZIP 打包同时推进，容易做成“什么都有、什么都没验证”。<b>建议：</b>MVP 只证明一件事：用已有记录改进转段 / 采收决策，并在异常时安全降级。资产库先收 5–8 个有原始时序的高质量来源。</p></div>
+    <div class="card"><h3>生产率公式漏掉了体积</h3><p><code>AXT_mg_L ÷ Total_Cycle_Days</code> 在分罐稀释时失真：稀释 2 倍后红色罐体积翻倍，单位体积浓度减半，但反应器占用增加。<b>本 Demo：</b>改用“反应器体积 · 天”口径，并把三种口径并排展示。</p></div>
+    <div class="card"><h3>用“天”作决策轴不够</h3><p>积累速率由培养内平均辐照决定（García-Malea 2009）；商业规模年度调查也发现累计光量是最主要因素。<b>建议：</b>增加一个低成本 PAR 记录或用气象辐照估算，把累计光量作为采收指标之一。</p></div>
+    <div class="card"><h3>温度规则不能单调</h3><p>Giannelli 等 2015 发现 27 °C 的虾青素产率比 20 °C 高约 1.4 倍，而 30–36 °C 会抑制积累。<b>本 Demo：</b>温度响应为有最适点的 CTMI 曲线，门控从 29 °C 起黄色、连续 ≥32 °C 红色，阈值可由企业数据重设。</p></div>
+    <div class="card"><h3>文献线索未经核实</h3><p>“2026 年两阶段时序”“2025 年公开仓储”等线索本次未能定位到可下载的原始工作簿，按原文要求列为待获取，未生成任何替代数据。Excel 资产库应在拿到全文与补充表后再建。</p></div>
+    <div class="card"><h3>漏了下游与可提取性</h3><p>厚壁孢囊需要破壁、干燥与超临界提取，是成本大头（Bauer &amp; Minceva 2021）。采收过晚的孢囊壁更厚，回收率可能下降。<b>建议：</b>第二版把采收日与破壁 / 提取回收率联合优化。</p></div>
+    <div class="card"><h3>污染是户外头号风险</h3><p>户外培养中真菌、原生动物和其他藻类污染是公认难题。<b>建议：</b>用手机镜检照片做“疑似”初筛分类，结果只作提示，必须人工确认后才触发门控。</p></div>
+    <div class="card"><h3>经济模块要讲清市场位置</h3><p>技术经济分析显示天然虾青素成本强烈依赖选址（同一模型在希腊与荷兰差数倍），饲料级市场受合成品约 880 €/kg 的价格压制。<b>建议：</b>定位营养品 / 化妆品原料，经济模块以价格区间做敏感性。</p></div>
+  </div>
+
+  <div class="sec-head"><h2>更值得投入的 AI 方向（按优先级）</h2></div>
+  <div class="dir">
+    <div class="card"><span class="pri">优先 1 · 已在 Demo 中</span><h3>光驱动机理模型 + 小样本校准</h3><p class="note">低参数、可解释，参数有物理意义，可用文献给先验、企业 2–3 批数据校准。比黑箱模型更适合数据极少的中试阶段。</p></div>
+    <div class="card"><span class="pri">优先 1 · 已在 Demo 中</span><h3>产线平衡与排程</h3><p class="note">分罐工艺的年产量常由瓶颈罐决定。按转段日与红色期长度计算建议的红 / 绿罐体积比，往往比改良生物学更快见效。</p></div>
+    <div class="card"><span class="pri">优先 2</span><h3>低成本软传感</h3><p class="note">用手机拍照的红绿色比、或 OD 比值估计虾青素含量，每批 1–2 次 HPLC 或分光测定做校准，把检测频率从每周提到每天。</p></div>
+    <div class="card"><span class="pri">优先 2</span><h3>分层贝叶斯多批次模型</h3><p class="note">每批参数从企业总体分布“借力”，新批次只需少量测点就能给出带区间的预测，并自然量化批次间差异。</p></div>
+    <div class="card"><span class="pri">优先 3</span><h3>贝叶斯优化指导对照试验</h3><p class="note">每轮 3–4 个转段日 / 光强处理，用期望改进选下一轮条件。这是验证转段因果效果的唯一可靠路径。</p></div>
+    <div class="card"><span class="pri">优先 3</span><h3>人在回路的异常识别</h3><p class="note">镜检图像分类 + 规则引擎，输出“疑似”与证据图片，由操作员确认；与门控、审计记录打通。</p></div>
+  </div>
+
+  <div class="sec-head"><h2>试点路线</h2></div>
+  <ol class="steps">
+    <li><b>第 0–2 周：数据接入</b>收集现有 SOP 与历史记录，用模板补齐字段，统一单位与口径。</li>
+    <li><b>第 2–6 周：影子运行</b>2–3 批按现行经验生产，系统只给建议不干预，记录预测与实际偏差。</li>
+    <li><b>第 6–10 周：参数校准</b>用影子批次校准 μmax、k_q、q_max、Ka，报告留出批次误差。</li>
+    <li><b>第 10–16 周：转段对照</b>同一种子液分 3–4 个转段日处理，验证模型排序是否正确。</li>
+    <li><b>第 16 周起：受控采用</b>门控绿色时按建议执行，黄 / 红时人工决策，持续记录审计。</li>
+    <li><b>评估节点</b>用全周期产率、批次稳定性与单位成本三项指标决定是否扩大。</li>
+  </ol>
+  <div class="card"><h3>企业需要提供的最小数据</h3>
+    <ul class="clean">
+      <li>每批：接种日、转段日、采收日、工作体积、转段稀释比</li>
+      <li>每 1–2 天：干重生物量（或经干重校准的 OD）；每 2–3 天：虾青素含量（注明 HPLC 或分光法）</li>
+      <li>每天：平均 / 最高温度；光照（PAR 读数，或气象辐照）；镜检备注</li>
+      <li>事件：停机、补料、污染处理、设备故障，以及对应时间</li>
+    </ul></div>
+</section>
+</main>
+
+<script>
+"use strict";
+/* ---------------- utilities ---------------- */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const fmt=(v,d=2)=>(v==null||!isFinite(v))?'—':Number(v).toLocaleString('zh-CN',{minimumFractionDigits:d,maximumFractionDigits:d});
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+function gauss(r){let u=0,v=0;while(u===0)u=r();while(v===0)v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+const pct=(arr,p)=>{const a=arr.filter(isFinite).slice().sort((x,y)=>x-y);if(!a.length)return NaN;const i=(a.length-1)*p,lo=Math.floor(i),hi=Math.ceil(i);return a[lo]+(a[hi]-a[lo])*(i-lo);};
+function copyText(text,btn){const done=()=>{const o=btn.textContent;btn.textContent='已复制';setTimeout(()=>btn.textContent=o,1400);};
+  try{navigator.clipboard.writeText(text).then(done,()=>fallback());}catch(e){fallback();}
+  function fallback(){const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done();}catch(e){btn.textContent='请手动选择复制';}ta.remove();}}
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
+
+/* ---------------- model ---------------- */
+const P0={muMax:0.9,Xmax_g:1.6,KI:30,KiI:800,Ka:0.06,Tmin:4,Topt:24,Tmax:33,
+  muR:0.40,gain:2.2,kq:0.6,KIa:80,qmax:35,q0:1.0,TminA:5,ToptA:27,TmaxA:35,kd0:0.005};
+const PARAM_META=[
+ ['muMax','μmax','d⁻¹','绿色期最大比生长速率','假设；用绿色期生物量生产率文献范围 0.036–0.37 g L⁻¹ d⁻¹ 做合理性检查（Shah 2016 表 4 汇总）','待企业校准'],
+ ['Xmax_g','Xmax','g L⁻¹','绿色期容量上限','假设；自养体系常见 1–3 g L⁻¹ 量级，混养 3.7 L 批次可达 2.65 g L⁻¹（Zhang 1999）','待企业校准'],
+ ['KI','K_I','µmol m⁻² s⁻¹','生长光半饱和常数','假设；文献报道的最适光强 30–200（Evens 等，实验室间分歧大）','待企业校准'],
+ ['KiI','K_inh','µmol m⁻² s⁻¹','生长光抑制常数','假设；混养模型最适 90–360（Zhang 1999）','待企业校准'],
+ ['Ka','Ka','m² g⁻¹','生物量比消光系数','假设，微藻常见量级；可用不同密度下的透光率实测','建议实测'],
+ ['Topt','Topt / Tmax','°C','绿色期温度最适 / 上限','24 / 33；受 Giannelli 2015 约束：30.5 °C 时最终细胞浓度仅为 20 °C 的 35%','文献约束'],
+ ['muR','μ_r','d⁻¹','红色期生物量增长速率','假设；红色期生物量生产率文献 0.01–0.7 g L⁻¹ d⁻¹（口径不一）','待企业校准'],
+ ['gain','g','—','红色期生物量增幅上限（相对转段时）','假设，反映孢囊增大与碳积累','待企业校准'],
+ ['kq','k_q','d⁻¹','虾青素积累速率常数','结构依据 García-Malea 2009（积累∝平均辐照）；数值为假设','待企业校准'],
+ ['KIa','K_Ia','µmol m⁻² s⁻¹','积累的光半饱和常数','假设','待企业校准'],
+ ['qmax','q_max','mg g⁻¹ DW','含量上限','默认 35（3.5%）；中试/户外 2.7–3.8%，实验室可达 5–7%（PMC7683316）','可在界面调整'],
+ ['ToptA','Topt_a / Tmax_a','°C','积累温度最适 / 上限','27 / 35；受 Giannelli 2015（27 °C 产率高于 20 °C）与 2015 AMB（30–36 °C 抑制）约束','文献约束'],
+ ['kd0','k_d','d⁻¹','基础损失；>32 °C 时每升 1 °C 增加 0.08','假设，仅用于压力测试','待企业校准']
+];
+function ctmi(T,Tmin,Topt,Tmax){if(T<=Tmin||T>=Tmax)return 0;const n=(T-Tmax)*(T-Tmin)**2;const d=(Topt-Tmin)*((Topt-Tmin)*(T-Topt)-(Topt-Tmax)*(Topt+Tmin-2*T));return Math.max(0,Math.min(1,n/d));}
+function iavg(I0,X,L,Ka){const tau=Ka*X*1000*L;return tau<1e-6?I0:I0*(1-Math.exp(-tau))/tau;}
+function simulate(p,S,prof,ts,redDays){
+  const dt=0.05,phot=S.photo/24,Lm=S.L/100,D=S.mode==='same'?1:S.D;
+  let X=S.X0,q=p.q0,t=0,cum=0,Xs=null;
+  const out={X:[X],q:[q],A:[X*q],cum:[0],T:[],I:[],D,ts};
+  const steps=Math.round((ts+redDays)/dt);
+  for(let i=1;i<=steps;i++){
+    const red=t>=ts-1e-9;
+    if(red&&Xs===null){X*=D;Xs=X;}
+    const T=prof.T(t,red?'r':'g'), I0=(red?S.Ir:S.Ig)*prof.I(t), Ia=iavg(I0,X,Lm,p.Ka);
+    if(!red){
+      const mu=p.muMax*Ia/(p.KI+Ia+Ia*Ia/p.KiI)*ctmi(T,p.Tmin,p.Topt,p.Tmax)*phot;
+      const kd=p.kd0+(T>32?0.08*(T-32):0);
+      X+=dt*(mu*X*(1-X/p.Xmax_g)-kd*X);
+    }else{
+      const fI=Ia/(p.KIa+Ia),fT=ctmi(T,p.TminA,p.ToptA,p.TmaxA),kd=p.kd0+(T>32?0.08*(T-32):0);
+      X+=dt*(p.muR*fI*fT*phot*X*(1-X/(p.gain*Xs))-kd*X);
+      q+=dt*(p.kq*fI*fT*phot*(p.qmax-q));
+    }
+    X=Math.max(X,1e-6);
+    cum+=I0*phot*86400e-6*dt;
+    t=i*dt;
+    if(i%20===0){out.X.push(X);out.q.push(q);out.A.push(X*q);out.cum.push(cum);}
+  }
+  return out;
+}
+function prodAt(sim,S,ts,h){
+  const A=sim.A[h];if(A==null)return null;
+  if(S.mode==='same'){const occ=h+S.turnG;return{corr:A/occ,naive:A/(h+S.turnG),redOnly:(A-sim.A[ts])/(h-ts),mass:A,occ};}
+  const D=sim.D,mass=A/D,occ=(ts+S.turnG)+(h-ts+S.turnR)/D;
+  return{corr:mass/occ,naive:A/(h+S.turnG+S.turnR),redOnly:(A-sim.A[ts]*D)/(h-ts),mass,occ};
+}
+const RMIN=2,RMAX=24,TSMIN=4,TSMAX=20;
+function gridSearch(p,S,prof){
+  const rows=[];let best={v:-1};
+  for(let ts=TSMIN;ts<=TSMAX;ts++){const sim=simulate(p,S,prof,ts,RMAX);const row=[];
+    for(let r=RMIN;r<=RMAX;r++){const v=prodAt(sim,S,ts,ts+r).corr;row.push(v);if(v>best.v)best={v,ts,r,h:ts+r};}
+    rows.push({ts,row});}
+  return{rows,best};
+}
+function monteCarlo(p,S,prof,ts,n){
+  const rnd=mulberry32(20261020),ln=s=>Math.exp(s*gauss(rnd)),sims=[];
+  for(let k=0;k<n;k++){const pp={...p,muMax:p.muMax*ln(.2),kq:p.kq*ln(.2),qmax:p.qmax*ln(.1),Ka:p.Ka*ln(.15),gain:p.gain*ln(.1),muR:p.muR*ln(.2),KIa:p.KIa*ln(.2)};sims.push(simulate(pp,S,prof,ts,RMAX));}
+  const H=[],P10=[],P50=[],P90=[];
+  for(let r=RMIN;r<=RMAX;r++){const h=ts+r;const v=sims.map(s=>prodAt(s,S,ts,h).corr);H.push(h);P10.push(pct(v,.1));P50.push(pct(v,.5));P90.push(pct(v,.9));}
+  const days=[...Array(ts+RMAX+1).keys()],band=k=>({lo:days.map(d=>pct(sims.map(s=>s[k][d]),.1)),hi:days.map(d=>pct(sims.map(s=>s[k][d]),.9))});
+  const bestH=sims.map(s=>{let b=-1,bh=null;for(let r=RMIN;r<=RMAX;r++){const v=prodAt(s,S,ts,ts+r).corr;if(v>b){b=v;bh=ts+r;}}return bh;});
+  const i50=P50.indexOf(Math.max(...P50)),i10=P10.indexOf(Math.max(...P10));
+  const win=H.filter((h,i)=>P50[i]>=0.95*P50[i50]);
+  return{H,P10,P50,P90,days,bX:band('X'),bA:band('A'),h50:H[i50],h10:H[i10],win:[win[0],win[win.length-1]],
+    hBest10:pct(bestH,.1),hBest90:pct(bestH,.9),spread:(P90[i50]-P10[i50])/P50[i50],pMax:P50[i50]};
+}
+
+/* ---------------- scenarios ---------------- */
+const SCN={
+  normal:{name:'正常工况',flags:{gap:0,offline:false,fault:false,contam:false}},
+  heat:{name:'持续高温',flags:{gap:0,offline:false,fault:false,contam:false},desc:'第 12–17 天培养液 33 °C'},
+  rain:{name:'低光 / 连续阴雨',flags:{gap:0,offline:false,fault:false,contam:false},desc:'第 9–16 天入射光降至 30%'},
+  gap:{name:'关键数据缺失',flags:{gap:5,offline:false,fault:false,contam:false},desc:'5 天无有效测量'},
+  offline:{name:'断网',flags:{gap:0,offline:true,fault:false,contam:false},desc:'天气使用 36 小时前缓存'},
+  fault:{name:'设备故障',flags:{gap:1,offline:false,fault:true,contam:false},desc:'操作员标记曝气 / 控温故障'},
+  contam:{name:'疑似污染',flags:{gap:0,offline:false,fault:false,contam:true},desc:'镜检发现疑似原生动物'}
+};
+function buildProfile(scn,S){
+  const N=80,Tover=new Array(N).fill(null),If=new Array(N).fill(1);
+  if(scn==='heat')for(let d=12;d<=17;d++)Tover[d]=33;
+  if(scn==='rain')for(let d=9;d<=16;d++)If[d]=0.3;
+  const ix=t=>Math.min(N-1,Math.max(0,Math.floor(t+1e-9)));
+  return{T:(t,st)=>Tover[ix(t)]??(st==='g'?S.Tg:S.Tr),I:t=>If[ix(t)]};
+}
+
+/* ---------------- state ---------------- */
+const state={S:null,scn:'normal',flags:{...SCN.normal.flags},sim:null,grid:null,mc:null,gridNormal:null,mcNormal:null,gate:null,audit:[],lastSig:'',data:null,saved:store.get('axt_saved',[])};
+function readS(){
+  const g=id=>parseFloat($(id).value);
+  const S={mode:$('#f_mode').value,D:g('#f_D'),L:g('#f_L'),Ig:g('#f_Ig'),Ir:g('#f_Ir'),photo:g('#f_photo'),Tg:g('#f_Tg'),Tr:g('#f_Tr'),X0:g('#f_X0'),turnG:g('#f_turnG'),turnR:g('#f_turnR'),qmax:g('#f_qmax'),ts:parseInt($('#f_ts').value,10)};
+  const lim={D:[0.2,1],L:[1,30],Ig:[10,1500],Ir:[50,2500],photo:[4,24],Tg:[10,35],Tr:[10,35],X0:[0.01,1],turnG:[0,10],turnR:[0,10],qmax:[10,70]};
+  for(const k in lim){if(!isFinite(S[k]))S[k]=lim[k][0];S[k]=Math.min(lim[k][1],Math.max(lim[k][0],S[k]));}
+  $('#f_D').disabled=S.mode==='same';$('#f_turnR').disabled=S.mode==='same';
+  return S;
+}
+const params=S=>({...P0,qmax:S.qmax});
+
+/* ---------------- gating ---------------- */
+function evaluateGate(){
+  const S=state.S,f=state.flags,prof=buildProfile(state.scn,S),rules=[];
+  const horizon=Math.min(79,(state.mc?state.mc.h50:S.ts+14)+2);
+  let maxT=-99,run=0,maxRun=0;for(let d=0;d<=horizon;d++){const T=prof.T(d,d>=S.ts?'r':'g');maxT=Math.max(maxT,T);run=T>=32?run+1:0;maxRun=Math.max(maxRun,run);}
+  let lowI=0;for(let d=S.ts;d<=horizon;d++)if(prof.I(d)<0.5)lowI++;
+  const add=(id,name,thr,obs,lv,reason,action)=>rules.push({id,name,thr,obs,lv,reason,action});
+  add('R1','设备故障（操作员标记）','标记 = 是 → 红',f.fault?'是':'否',f.fault?'red':'green','设备状态不可信，温度、光照、曝气输入可能失真','停用优化；按 SOP 巡检；恢复后补测生物量与镜检');
+  add('R2','疑似污染（镜检标记）','标记 = 是 → 红',f.contam?'是':'否',f.contam?'red':'green','模型未考虑污染动力学，预测失效','停用优化；人工镜检确认；按污染处置 SOP 决定提前采收或倒罐');
+  add('R3','测量中断时长','≥2 天 黄；>4 天 红',f.gap+' 天',f.gap>4?'red':f.gap>=2?'yellow':'green','距上次有效生物量 / 虾青素测量时间过长，模型状态无法更新','补测干重与虾青素含量；补测前仅用保守建议');
+  add('R4','温度适用范围','最高 ≥29 °C 黄；连续 ≥2 天 ≥32 °C 红',`最高 ${fmt(maxT,1)} °C，连续≥32 °C ${maxRun} 天`,maxRun>=2?'red':maxT>=29?'yellow':'green','超出参数约束范围（文献：30–36 °C 抑制积累）','启动降温 / 遮阴；人工评估是否提前采收');
+  add('R5','红色期光照不足','光强 <50% 计划 ≥3 天 → 黄',`${lowI} 天`,lowI>=3?'yellow':'green','积累速率随平均辐照下降，最优日推迟且不确定性扩大','推迟采收决策；增加一次虾青素检测');
+  const sp=state.mc?state.mc.spread:0;
+  add('R6','预测不确定性','(P90−P10)/P50 > 60% → 黄',fmt(sp*100,0)+'%',sp>0.6?'yellow':'green','参数不确定性过大，最优日排序不稳定','采用 P10 保守日；补充校准数据');
+  add('R7','天气数据时效','缓存 >24 h → 黄',f.offline?'36 h（缓存）':'实时 / 本地记录',f.offline?'yellow':'green','断网时核心计算照常运行，但未来天气未更新','用本地温度 / 光照记录；联网后重算');
+  const d=state.data;let dl='green',dobs='未载入';
+  if(d&&d.batches&&d.cur){const b=d.batches[d.cur];dobs=b.predOK?'时序充分':b.reason;dl=b.predOK?(b.pred&&b.pred.extrap?'yellow':'green'):'yellow';}
+  add('R8','企业数据充分性','虾青素 ≥4 点且跨度 ≥6 天',dobs,d?dl:'info','数据不足时只报告已观测最优，不做预测','按模板补齐时序数据');
+  const order={info:0,green:1,yellow:2,red:3};
+  const lv=rules.reduce((a,r)=>order[r.lv]>order[a]?r.lv:a,'green');
+  state.gate={lv,rules,maxT,maxRun,lowI};
+  const sig=lv+'|'+rules.filter(r=>r.lv==='red'||r.lv==='yellow').map(r=>r.id).join(',')+'|'+state.scn;
+  if(sig!==state.lastSig){state.lastSig=sig;
+    state.audit.unshift({time:new Date().toLocaleString('zh-CN',{hour12:false}),scn:SCN[state.scn].name,lv,rules:rules.filter(r=>r.lv==='red'||r.lv==='yellow').map(r=>r.id+' '+r.name+'（'+r.obs+'）').join('；')||'无触发',ts:S.ts});
+    if(state.audit.length>60)state.audit.pop();}
+}
+const LV_TXT={green:'可优化',yellow:'仅保守建议 / 需补充检测',red:'停止优化 / 人工介入',info:'未评估'};
+
+/* ---------------- charts ---------------- */
+function niceStep(raw){const p=Math.pow(10,Math.floor(Math.log10(raw)));const f=raw/p;return(f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p;}
+function ticks(lo,hi,n){if(!(hi>lo))hi=lo+1;const s=niceStep((hi-lo)/n);const a=[];for(let v=Math.floor(lo/s)*s;v<=hi+s*0.999;v+=s)a.push(+v.toFixed(10));return a;}
+const tickFmt=v=>Math.abs(v)>=1000?fmt(v,0):Math.abs(v)>=10?(+v.toFixed(1)).toString():(+v.toFixed(2)).toString();
+function lineChart(el,o){
+  const W=o.w||640,H=o.h||240,m={l:48,r:14,t:12,b:38};
+  const xs=[],ys=[];
+  (o.series||[]).forEach(s=>s.x.forEach((v,i)=>{if(s.y[i]!=null&&isFinite(s.y[i])){xs.push(v);ys.push(s.y[i]);}}));
+  (o.bands||[]).forEach(b=>b.x.forEach((v,i)=>{if(isFinite(b.hi[i])){xs.push(v);ys.push(b.hi[i],b.lo[i]);}}));
+  (o.points||[]).forEach(p=>{xs.push(p.x);ys.push(p.y);});
+  if(!xs.length){el.innerHTML='<div class="empty">'+(o.empty||'暂无数据')+'</div>';return;}
+  const x0=o.xmin??Math.min(...xs),x1=o.xmax??Math.max(...xs);
+  const yt=ticks(o.ymin??0,Math.max(...ys)*1.05,4),y0=yt[0],y1=yt[yt.length-1];
+  const xt=ticks(x0,x1,o.xticks||6).filter(v=>v>=x0-1e-9&&v<=x1+1e-9);
+  const X=v=>m.l+(v-x0)/((x1-x0)||1)*(W-m.l-m.r),Y=v=>H-m.b-(v-y0)/((y1-y0)||1)*(H-m.t-m.b);
+  let g='';
+  (o.shade||[]).forEach(s=>{const a=Math.max(s.x0,x0),b=Math.min(s.x1,x1);if(b<=a)return;g+=`<rect x="${X(a)}" y="${m.t}" width="${X(b)-X(a)}" height="${H-m.t-m.b}" style="fill:${s.color};fill-opacity:${s.op||0.08}"/>`;if(s.label)g+=`<text x="${X(a)+4}" y="${m.t+12}" class="ax-l">${s.label}</text>`;});
+  yt.forEach(v=>{g+=`<line x1="${m.l}" x2="${W-m.r}" y1="${Y(v)}" y2="${Y(v)}" class="grid"/><text x="${m.l-6}" y="${Y(v)+4}" text-anchor="end" class="ax">${tickFmt(v)}</text>`;});
+  xt.forEach(v=>{g+=`<text x="${X(v)}" y="${H-m.b+15}" text-anchor="middle" class="ax">${tickFmt(v)}</text>`;});
+  g+=`<line x1="${m.l}" x2="${W-m.r}" y1="${H-m.b}" y2="${H-m.b}" class="axis"/>`;
+  if(o.xLabel)g+=`<text x="${(m.l+W-m.r)/2}" y="${H-4}" text-anchor="middle" class="ax-l">${o.xLabel}</text>`;
+  if(o.yLabel){const cy=m.t+(H-m.t-m.b)/2;g+=`<text x="11" y="${cy}" transform="rotate(-90 11 ${cy})" text-anchor="middle" class="ax-l">${o.yLabel}</text>`;}
+  (o.bands||[]).forEach(b=>{const up=[],dn=[];b.x.forEach((v,i)=>{if(isFinite(b.hi[i])&&isFinite(b.lo[i])){up.push(`${X(v).toFixed(1)},${Y(b.hi[i]).toFixed(1)}`);dn.push(`${X(v).toFixed(1)},${Y(b.lo[i]).toFixed(1)}`);}});g+=`<polygon points="${up.concat(dn.reverse()).join(' ')}" style="fill:${b.color};fill-opacity:${b.op||0.18};stroke:none"/>`;});
+  (o.series||[]).forEach(s=>{let d='',pen=false;s.x.forEach((v,i)=>{const y=s.y[i];if(y==null||!isFinite(y)){pen=false;return;}d+=(pen?'L':'M')+X(v).toFixed(1)+','+Y(y).toFixed(1);pen=true;});g+=`<path d="${d}" style="fill:none;stroke:${s.color};stroke-width:${s.w||2};stroke-linejoin:round;${s.dash?'stroke-dasharray:'+s.dash:''}"/>`;});
+  (o.vlines||[]).forEach(v=>{if(v.x<x0||v.x>x1)return;g+=`<line x1="${X(v.x)}" x2="${X(v.x)}" y1="${m.t}" y2="${H-m.b}" style="stroke:${v.color||'var(--grey)'};stroke-dasharray:4 3;stroke-width:1.3"/>`;if(v.label)g+=`<text x="${X(v.x)+(v.anchor==='end'?-4:4)}" y="${m.t+(v.dy||26)}" text-anchor="${v.anchor||'start'}" class="ax-l" style="fill:${v.color||'var(--muted)'}">${v.label}</text>`;});
+  (o.points||[]).forEach(p=>{g+=`<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="${p.r||3.6}" style="fill:${p.fill||'var(--surface)'};stroke:${p.color};stroke-width:1.8"/>`;});
+  (o.marks||[]).forEach(p=>{g+=`<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="5" style="fill:${p.color};stroke:var(--surface);stroke-width:2"/>`;});
+  g+=`<line class="hov" x1="0" x2="0" y1="${m.t}" y2="${H-m.b}" visibility="hidden"/><rect class="hit" x="${m.l}" y="${m.t}" width="${W-m.l-m.r}" height="${H-m.t-m.b}" style="fill:transparent"/>`;
+  let leg='';
+  (o.series||[]).filter(s=>s.name).forEach(s=>leg+=`<span><i class="${s.dash?'dash':''}" style="background:${s.color};border-color:${s.color}"></i>${s.name}</span>`);
+  (o.bands||[]).filter(b=>b.name).forEach(b=>leg+=`<span><i class="bd" style="background:${b.color}"></i>${b.name}</span>`);
+  if(o.pointName)leg+=`<span><i class="pt" style="border-color:${o.points[0]?.color||'var(--fg)'}"></i>${o.pointName}</span>`;
+  el.innerHTML=`<div class="chart-wrap"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.aria||o.yLabel||'chart')}">${g}</svg><div class="tip" hidden></div></div>${leg?`<div class="legend">${leg}</div>`:''}`;
+  const svg=el.querySelector('svg'),tip=el.querySelector('.tip'),hov=svg.querySelector('.hov'),named=(o.series||[]).filter(s=>s.name);
+  if(!named.length)return;
+  svg.addEventListener('mousemove',e=>{const r=svg.getBoundingClientRect(),px=(e.clientX-r.left)/r.width*W,xv=x0+(px-m.l)/(W-m.l-m.r)*(x1-x0);
+    let best=null,bd=1e9;named[0].x.forEach(v=>{const dd=Math.abs(v-xv);if(dd<bd){bd=dd;best=v;}});if(best==null)return;
+    hov.setAttribute('x1',X(best));hov.setAttribute('x2',X(best));hov.setAttribute('visibility','visible');
+    let h=`<b>${o.xName||'第'} ${tickFmt(best)} ${o.xUnit||'天'}</b>`;named.forEach(s=>{const i=s.x.indexOf(best);if(i>=0&&s.y[i]!=null&&isFinite(s.y[i]))h+=`<br><span style="color:${s.color}">●</span> ${s.name}：${fmt(s.y[i],o.dp??2)}`;});
+    tip.innerHTML=h;tip.hidden=false;const left=X(best)/W*r.width;tip.style.left=(left>r.width*0.6?left-tip.offsetWidth-10:left+10)+'px';});
+  svg.addEventListener('mouseleave',()=>{tip.hidden=true;hov.setAttribute('visibility','hidden');});
+}
+function heatmap(el,G,selTs,disabled){
+  const rows=G.rows,nC=rows[0].row.length,W=640,m={l:46,r:10,t:8,b:40},ch=14,H=m.t+m.b+rows.length*ch,cw=(W-m.l-m.r)/nC;
+  let vmin=Infinity;rows.forEach(r=>r.row.forEach(v=>vmin=Math.min(vmin,v)));const vmax=G.best.v;
+  let g='';
+  rows.forEach((r,i)=>r.row.forEach((v,j)=>{const t=Math.max(0,(v-vmin)/((vmax-vmin)||1));
+    g+=`<rect x="${(m.l+j*cw).toFixed(1)}" y="${m.t+i*ch}" width="${(cw-1).toFixed(1)}" height="${ch-1}" style="fill:var(--accent);fill-opacity:${(0.05+0.92*t*t).toFixed(3)}"><title>转段第 ${r.ts} 天，红色期 ${j+RMIN} 天（第 ${r.ts+j+RMIN} 天采收）：${fmt(v,2)} mg L⁻¹ d⁻¹</title></rect>`;}));
+  rows.forEach((r,i)=>{if(r.ts%2===0)g+=`<text x="${m.l-6}" y="${m.t+i*ch+11}" text-anchor="end" class="ax">${r.ts}</text>`;});
+  for(let j=0;j<nC;j+=2)g+=`<text x="${m.l+j*cw+cw/2}" y="${H-m.b+14}" text-anchor="middle" class="ax">${j+RMIN}</text>`;
+  g+=`<text x="${(m.l+W-m.r)/2}" y="${H-6}" text-anchor="middle" class="ax-l">红色期时长（天）</text>`;
+  g+=`<text x="11" y="${m.t+rows.length*ch/2}" transform="rotate(-90 11 ${m.t+rows.length*ch/2})" text-anchor="middle" class="ax-l">转段日</text>`;
+  const si=rows.findIndex(r=>r.ts===selTs);if(si>=0)g+=`<rect x="${m.l-1}" y="${m.t+si*ch-1}" width="${W-m.l-m.r+1}" height="${ch+1}" style="fill:none;stroke:var(--fg);stroke-width:1.2;stroke-dasharray:4 3"/>`;
+  const bi=rows.findIndex(r=>r.ts===G.best.ts),bj=G.best.r-RMIN;g+=`<rect x="${m.l+bj*cw-1}" y="${m.t+bi*ch-1}" width="${cw+1}" height="${ch+1}" style="fill:none;stroke:var(--fg);stroke-width:2.2"/>`;
+  el.innerHTML=`<div class="chart-wrap ${disabled?'disabled-overlay':''}" ${disabled?`data-msg="${esc(disabled)}"`:''}><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="转段日与红色期时长热图">${g}</svg></div>`;
+}
+
+/* ---------------- render: simulate / overview ---------------- */
+const C={algae:'var(--algae)',accent:'var(--accent)',grey:'var(--grey)',fg:'var(--fg)',band:'var(--band)',warn:'var(--warn)'};
+function recompute(){
+  const S=state.S=readS();$('#o_ts').textContent=S.ts;
+  const p=params(S),prof=buildProfile(state.scn,S);
+  state.grid=gridSearch(p,S,prof);
+  state.sim=simulate(p,S,prof,S.ts,RMAX);
+  state.mc=monteCarlo(p,S,prof,S.ts,120);
+  const profN=buildProfile('normal',S);
+  state.gridNormal=state.scn==='normal'?state.grid:gridSearch(p,S,profN);
+  state.mcNormal=state.scn==='normal'?state.mc:monteCarlo(p,S,profN,S.ts,120);
+  evaluateGate();renderAll();
+}
+function renderAll(){renderStatus();renderOverview();renderSim();renderRobust();renderEcon();}
+function renderStatus(){const g=state.gate;$('#sbScn').textContent=SCN[state.scn].name;const el=$('#sbGate');el.className='gate g-'+g.lv;el.textContent='门控：'+LV_TXT[g.lv];
+  const d=state.data;$('#sbMode').innerHTML=d?`<span class="tag t-obs">已载入</span> ${esc(d.label)} · ${Object.keys(d.batches).length} 个批次`:`<span class="tag t-sim">演示</span> 尚无企业数据，参数为文献约束假设值`;}
+function kpi(label,val,unit,tag,cls=''){return`<div class="kpi ${cls}"><div class="k-l"><span>${label}</span>${tag}</div><div class="k-v">${val}</div><div class="k-u">${unit}</div></div>`;}
+const TAG={sim:'<span class="tag t-sim">模拟</span>',pred:'<span class="tag t-pred">预测</span>',calc:'<span class="tag t-calc">计算</span>'};
+function renderOverview(){
+  const G=state.grid,S=state.S,p=params(S),prof=buildProfile(state.scn,S),b=G.best,sim=simulate(p,S,prof,b.ts,RMAX),h=b.h,g=state.gate;
+  const X=sim.X[h],q=sim.q[h],A=sim.A[h];
+  $('#ovKpis').innerHTML=
+    kpi('候选转段日',g.lv==='red'?'—':'第 '+b.ts+' 天','绿色期天数',TAG.sim)+
+    kpi('候选采收日',g.lv==='red'?'—':'第 '+h+' 天','红色期 '+b.r+' 天',TAG.sim)+
+    kpi('采收时生物量',fmt(X,2),'g DW L⁻¹（红色罐）',TAG.sim)+
+    kpi('虾青素含量',fmt(q/10,2),'% DW（'+fmt(q,1)+' mg g⁻¹）',TAG.sim)+
+    kpi('虾青素浓度',fmt(A,1),'mg L⁻¹ = g L⁻¹ × mg g⁻¹',TAG.calc)+
+    kpi('全周期生产率',fmt(b.v,2),'mg L⁻¹ d⁻¹ · 反应器体积·天口径',TAG.sim,'accent')+
+    `<div class="kpi"><div class="k-l"><span>风险门控</span><span class="tag t-sim">${esc(SCN[state.scn].name)}</span></div><div><span class="gate g-${g.lv}">${LV_TXT[g.lv]}</span></div><div class="k-u">${g.rules.filter(r=>r.lv==='red'||r.lv==='yellow').map(r=>r.name).join('、')||'无规则触发'}</div></div>`;
+}
+function renderSim(){
+  const S=state.S,sim=state.sim,mc=state.mc,G=state.grid,g=state.gate,ts=S.ts;
+  const rec=$('#simRec');rec.className='rec lv-'+g.lv;
+  const trig=g.rules.filter(r=>r.lv==='red'||r.lv==='yellow');
+  if(g.lv==='red'){rec.innerHTML=`<div class="r-h">已停止优化，请人工介入</div><div class="r-s">触发：${trig.filter(r=>r.lv==='red').map(r=>'<b>'+esc(r.name)+'</b>（'+esc(r.obs)+'）').join('；')}。<br>操作：${trig.filter(r=>r.lv==='red').map(r=>esc(r.action)).join('；')}。</div>`;}
+  else if(g.lv==='yellow'){rec.innerHTML=`<div class="r-h">保守建议：第 ${ts} 天转段，第 ${mc.h10} 天采收</div><div class="r-s">采用 P10 情形下的最优日（悲观参数下仍较稳）。名义最优为第 ${mc.h50} 天。需补充：${trig.map(r=>esc(r.action)).join('；')}。</div>`;}
+  else{rec.innerHTML=`<div class="r-h">建议：第 ${ts} 天转段，第 ${mc.h50} 天采收</div><div class="r-s">高产窗口第 <b>${mc.win[0]}–${mc.win[1]}</b> 天（≥95% 峰值）；最优采收日的不确定区间 P10–P90 为第 <b>${fmt(mc.hBest10,0)}–${fmt(mc.hBest90,0)}</b> 天。全局候选：第 <b>${G.best.ts}</b> 天转段、红色期 <b>${G.best.r}</b> 天，名义产率 <b>${fmt(G.best.v,2)}</b> mg L⁻¹ d⁻¹。所有数值为未校准模拟。</div>`;}
+  const h=mc.h50,pr=prodAt(sim,S,ts,h);
+  const ratio=S.mode==='same'?null:((h-ts+S.turnR)/S.D)/(ts+S.turnG);
+  $('#simKpis').innerHTML=
+    kpi('采收日虾青素浓度',fmt(sim.A[h],1),'mg L⁻¹（红色罐）',TAG.sim)+
+    kpi('含量',fmt(sim.q[h]/10,2),'% DW',TAG.sim)+
+    kpi('全周期生产率 P50',fmt(mc.pMax,2),`mg L⁻¹ d⁻¹（P10 ${fmt(mc.P10[mc.H.indexOf(h)],2)} – P90 ${fmt(mc.P90[mc.H.indexOf(h)],2)}）`,TAG.sim,'accent')+
+    kpi('原公式口径',fmt(pr.naive,2),'mg L⁻¹ d⁻¹，未计稀释体积',TAG.calc)+
+    kpi('红色期累计光量',fmt(sim.cum[h]-sim.cum[ts],0),'mol photons m⁻²（入射）',TAG.calc)+
+    (ratio?kpi('建议红 / 绿罐体积比',fmt(ratio,2),'使两段产线均衡',TAG.calc):kpi('反应器占用',fmt(pr.occ,1),'天 / 批',TAG.calc));
+  const naive=[],red=[],corr=[];mc.H.forEach(hh=>{const r=prodAt(sim,S,ts,hh);corr.push(r.corr);naive.push(r.naive);red.push(r.redOnly);});
+  lineChart($('#chProd'),{series:[{x:mc.H,y:corr,color:C.accent,name:'体积·天口径（名义）',w:2.4},{x:mc.H,y:naive,color:C.grey,name:'原公式口径',dash:'6 4'},{x:mc.H,y:red,color:C.warn,name:'仅红色期口径',dash:'2 3',w:1.6}],
+    bands:[{x:mc.H,lo:mc.P10,hi:mc.P90,color:C.accent,name:'P10–P90',op:0.16}],
+    vlines:g.lv==='red'?[]:[{x:g.lv==='yellow'?mc.h10:mc.h50,label:g.lv==='yellow'?'保守采收日':'建议采收日',color:C.accent}],
+    shade:g.lv==='green'?[{x0:mc.win[0]-0.5,x1:mc.win[1]+0.5,color:C.accent,op:0.06,label:'高产窗口'}]:[],
+    xLabel:'采收日（自接种起，天）',yLabel:'mg L⁻¹ d⁻¹',dp:2});
+  const days=mc.days,sh=[{x0:0,x1:ts,color:C.algae,op:0.07,label:'绿色期'},{x0:ts,x1:days[days.length-1],color:C.accent,op:0.05,label:'红色期'}];
+  lineChart($('#chX'),{series:[{x:days,y:sim.X,color:C.algae,name:'名义'}],bands:[{x:days,lo:mc.bX.lo,hi:mc.bX.hi,color:C.algae,name:'P10–P90'}],shade:sh,xLabel:'天',yLabel:'g DW L⁻¹',w:420,h:250,vlines:[{x:ts,label:'转段'+(S.mode==='sep'&&S.D<1?' ×'+S.D:''),color:C.grey}]});
+  lineChart($('#chA'),{series:[{x:days,y:sim.A,color:C.accent,name:'名义'}],bands:[{x:days,lo:mc.bA.lo,hi:mc.bA.hi,color:C.accent,name:'P10–P90'}],shade:sh,xLabel:'天',yLabel:'mg L⁻¹',w:420,h:250,dp:1});
+  heatmap($('#chHeat'),G,ts,g.lv==='red'?'门控为红色：优化结果已停用，仅供工程人员排查':null);
+  // sanity
+  const Xts=sim.X[ts],gp=(Xts-S.X0)/ts,rp=(sim.X[h]-Xts*sim.D)/(h-ts),qq=sim.q[h]/10,ro=pr.redOnly;
+  const chk=(v,lo,hi)=>v>=lo&&v<=hi?'<span class="lv green">范围内</span>':'<span class="lv yellow">范围外</span>';
+  $('#sanity').innerHTML=`<div class="tbl-wrap"><table><tr><th>指标</th><th>模型</th><th>文献范围</th><th>结论</th></tr>
+   <tr><td>绿色期生物量生产率</td><td class="n">${fmt(gp,3)} g L⁻¹ d⁻¹</td><td class="n">0.03–0.37</td><td>${chk(gp,0.03,0.37)}</td></tr>
+   <tr><td>红色期生物量生产率</td><td class="n">${fmt(rp,3)} g L⁻¹ d⁻¹</td><td class="n">0.01–0.70</td><td>${chk(rp,0.01,0.7)}</td></tr>
+   <tr><td>采收时虾青素含量</td><td class="n">${fmt(qq,2)} % DW</td><td class="n">0.8–3.8（中试/户外）</td><td>${chk(qq,0.8,3.8)}</td></tr>
+   <tr><td>仅红色期虾青素生产率</td><td class="n">${fmt(ro,2)} mg L⁻¹ d⁻¹</td><td class="n">0.44–17.1</td><td>${chk(ro,0.44,17.1)}</td></tr></table></div>`;
+}
+
+/* ---------------- render: robust ---------------- */
+function renderRobust(){
+  const g=state.gate,S=state.S;
+  $$('#scnChips .chipbtn').forEach(b=>b.setAttribute('aria-pressed',b.dataset.scn===state.scn));
+  $('#gateBig').className='gate g-'+g.lv;$('#gateBig').textContent=LV_TXT[g.lv];
+  $('#gateWhy').textContent=SCN[state.scn].desc?('模拟压力测试 · '+SCN[state.scn].desc):'模拟压力测试 · 基准工况';
+  $('#gateRules').innerHTML='<tr><th>规则</th><th>触发条件</th><th>观测值</th><th>结论</th></tr>'+g.rules.map(r=>`<tr><td><b>${r.id}</b> ${esc(r.name)}</td><td>${esc(r.thr)}</td><td class="n">${esc(r.obs)}</td><td><span class="lv ${r.lv}">${r.lv==='info'?'未评估':r.lv==='green'?'通过':r.lv==='yellow'?'黄':'红'}</span></td></tr>`).join('');
+  const trig=g.rules.filter(r=>r.lv==='red'||r.lv==='yellow');
+  $('#gateActions').innerHTML=trig.length?`<h3 style="margin-top:6px">原因与可执行操作</h3><ul class="clean">${trig.map(r=>`<li><span class="lv ${r.lv}">${r.lv==='red'?'红':'黄'}</span> ${esc(r.reason)}。<b>操作：</b>${esc(r.action)}</li>`).join('')}</ul>`:'<p class="note">无规则触发，模型建议可作为优化参考；试点阶段仍需操作员确认后执行。</p>';
+  const prof=buildProfile(state.scn,S),N=Math.max(S.ts+RMAX,36),days=[...Array(N+1).keys()];
+  const T=days.map(d=>prof.T(d,d>=S.ts?'r':'g')),I=days.map(d=>(d>=S.ts?S.Ir:S.Ig)*prof.I(d));
+  const sh=[{x0:0,x1:S.ts,color:C.algae,op:0.07,label:'绿色期'},{x0:S.ts,x1:N,color:C.accent,op:0.05,label:'红色期'}];
+  lineChart($('#chT'),{series:[{x:days,y:T,color:C.accent,name:'培养液温度 °C'}],shade:sh,ymin:10,xLabel:'天',yLabel:'°C',w:460,h:220,dp:1});
+  lineChart($('#chI'),{series:[{x:days,y:I,color:C.algae,name:'入射光 µmol m⁻² s⁻¹'}],shade:sh,xLabel:'天',yLabel:'µmol m⁻² s⁻¹',w:460,h:220,dp:0});
+  const a=state.mcNormal,b=state.mc,d=(b.pMax-a.pMax)/a.pMax*100;
+  $('#robImpact').innerHTML=`<div class="tbl-wrap"><table><tr><th></th><th>正常工况</th><th>${esc(SCN[state.scn].name)}</th></tr>
+   <tr><td>名义最优采收日</td><td class="n">第 ${a.h50} 天</td><td class="n">第 ${b.h50} 天</td></tr>
+   <tr><td>全周期生产率 P50</td><td class="n">${fmt(a.pMax,2)}</td><td class="n">${fmt(b.pMax,2)}（${d>=0?'+':''}${fmt(d,1)}%）</td></tr>
+   <tr><td>不确定性 (P90−P10)/P50</td><td class="n">${fmt(a.spread*100,0)}%</td><td class="n">${fmt(b.spread*100,0)}%</td></tr></table></div>
+   <p class="note">温度与光照情景改变模型输入；缺失、断网、故障、污染情景只改变门控，不修改模型曲线（系统不对未建模的过程做定量预测）。</p>`;
+  $('#auditTbl').innerHTML='<tr><th>时间</th><th>情景</th><th>转段日</th><th>等级</th><th>触发规则与观测值</th></tr>'+state.audit.map(r=>`<tr><td class="n">${r.time}</td><td>${esc(r.scn)}</td><td class="n">${r.ts}</td><td><span class="lv ${r.lv}">${LV_TXT[r.lv]}</span></td><td>${esc(r.rules)}</td></tr>`).join('');
+}
+
+/* ---------------- economics ---------------- */
+function econInputs(){const e=id=>Math.max(0,parseFloat($(id).value)||0);
+  return{Vg:e('#e_Vg'),Vr:e('#e_Vr'),days:e('#e_days'),rec:Math.min(1,e('#e_rec')),qual:Math.min(1,e('#e_qual')),price:e('#e_price'),occ:e('#e_occ'),dsp:e('#e_dsp'),fixed:e('#e_fixed')};}
+function econEval(sim,ts,h,E){
+  const S=state.S,A=sim.A[h],X=sim.X[h],D=sim.D;let thr,bottle,util;
+  if(S.mode==='same'){thr=(E.Vg+E.Vr)*1000*E.days/(h+S.turnG);bottle='—';util='—';}
+  else{const tg=E.Vg*1000*E.days/(ts+S.turnG),tr=E.Vr*1000*E.days/((h-ts+S.turnR)/D);thr=Math.min(tg,tr);bottle=tg<tr?'绿色罐':'红色罐';util=`绿 ${fmt(thr/tg*100,0)}% / 红 ${fmt(thr/tr*100,0)}%`;}
+  const bioKg=thr*X/D/1000,axtCult=thr*A/D/1e6,axtSell=axtCult*E.rec*E.qual;
+  const cost=(E.Vg+E.Vr)*E.days*E.occ+bioKg*E.dsp+E.fixed,rev=axtSell*E.price;
+  return{ts,h,A,q:sim.q[h],thr,bottle,util,bioKg,axtCult,axtSell,cost,rev,profit:rev-cost,unit:axtSell>0?cost/axtSell:NaN};
+}
+function econStrategy(ts,h,E){const S=state.S,sim=simulate(params(S),S,buildProfile(state.scn,S),ts,RMAX);return econEval(sim,ts,h,E);}
+function econOptimize(E){const S=state.S,p=params(S),prof=buildProfile(state.scn,S);let best=null;
+  for(let ts=TSMIN;ts<=TSMAX;ts++){const sim=simulate(p,S,prof,ts,RMAX);for(let r=RMIN;r<=RMAX;r++){const x=econEval(sim,ts,ts+r,E);if(!best||x.profit>best.profit)best=x;}}return best;}
+function renderEcon(){
+  const hc=parseInt($('#e_hCur').value,10),tc=parseInt($('#e_tsCur').value,10);
+  const tsCur=Math.min(TSMAX,Math.max(TSMIN,tc||12)),hCur=Math.max(tsCur+RMIN,Math.min(tsCur+RMAX,hc||30));
+  const E=econInputs(),cur=econStrategy(tsCur,hCur,E),cand=econOptimize(E);state.econ={cur,cand};
+  const rows=[['转段日 / 采收日',x=>`第 ${x.ts} / 第 ${x.h} 天`,null],['采收时虾青素浓度 (mg L⁻¹)',x=>fmt(x.A,1),'A'],['含量 (% DW)',x=>fmt(x.q/10,2),null],
+    ['年处理绿色藻液 (m³)',x=>fmt(x.thr/1000,0),'thr1'],['产线瓶颈',x=>x.bottle,null],['设备利用率',x=>x.util,null],
+    ['理论培养虾青素 (kg/年)',x=>fmt(x.axtCult,2),'axtCult'],['可销售虾青素 (kg/年)',x=>fmt(x.axtSell,2),'axtSell'],['干藻粉 (kg/年)',x=>fmt(x.bioKg,0),'bioKg'],
+    ['收入 (USD/年)',x=>fmt(x.rev,0),'rev'],['总成本 (USD/年)',x=>fmt(x.cost,0),'cost'],['单位成本 (USD/kg)',x=>fmt(x.unit,0),'unit'],['利润 (USD/年)',x=>fmt(x.profit,0),'profit']];
+  const diff=k=>{if(!k)return'';const a=k==='thr1'?cur.thr/1000:cur[k],c=k==='thr1'?cand.thr/1000:cand[k];if(!isFinite(a)||!isFinite(c))return'—';const d=c-a;return(d>=0?'+':'')+fmt(d,Math.abs(d)<10?2:0);};
+  $('#econTbl').innerHTML='<tr><th>指标</th><th>经验策略</th><th>模型候选（按当前罐容优化利润）</th><th>差值</th></tr>'+rows.map(r=>`<tr><td>${r[0]}</td><td class="n">${r[1](cur)}</td><td class="n">${r[1](cand)}</td><td class="n">${diff(r[2])}</td></tr>`).join('');
+  const red=state.gate.lv==='red';
+  $('#econNote').innerHTML=(red?'<b style="color:var(--crit)">门控为红色：以下候选策略不应执行，仅供讨论。</b> ':'')+`情景：${esc(SCN[state.scn].name)}。模型参数未经企业校准，差值反映模型假设下的理论潜力，不是已实现增产。`;
+  const dp=cand.profit-cur.profit,dk=cand.axtSell-cur.axtSell;
+  $('#econSummary').innerHTML=`<p>在当前假设下，模型候选策略（第 ${cand.ts} 天转段、第 ${cand.h} 天采收）相比经验策略（第 ${cur.ts} 天转段、第 ${cur.h} 天采收），理论可销售虾青素变化 <b>${dk>=0?'+':''}${fmt(dk,2)} kg/年</b>，利润变化 <b>${dp>=0?'+':''}${fmt(dp,0)} USD/年</b>。</p>
+    <p>候选策略在当前罐容下搜索转段日与采收日使年利润最大，差异来自反应器占用时间与红 / 绿两段的产线平衡：${S_bottle(cand)}。</p>
+    <p>按候选策略，单位成本约 <b>${fmt(cand.unit,0)} USD/kg</b>：售价高于此值才盈利。这一数值对罐容、运行成本和回收率高度敏感，请用企业实际值替换后再讨论。</p>
+    <p>需要现场验证的前提：①模型参数用企业 2–3 批数据校准；②回收率与合格率按实际下游数据替换；③候选转段日经过对照试验确认。</p>`;
+  $('#savedTbl').innerHTML=state.saved.length?'<tr><th>保存时间</th><th>情景</th><th>经验策略</th><th>候选策略</th><th>可销售 kg/年（经验 → 候选）</th><th>利润 USD/年（经验 → 候选）</th><th></th></tr>'+state.saved.map((s,i)=>`<tr><td class="n">${s.time}</td><td>${esc(s.scn)}</td><td>${s.cur}</td><td>${s.cand}</td><td class="n">${s.kg}</td><td class="n">${s.pf}</td><td><button class="btn sm" type="button" data-del="${i}">删除</button></td></tr>`).join(''):'<tr><td class="note">尚未保存情景。</td></tr>';
+}
+function S_bottle(x){return x.bottle==='—'?'同罐模式下由批次周期决定':`当前体积配置下瓶颈在${x.bottle}（利用率 ${x.util}），调整罐容比例可能比调整工艺更快见效`;}
+function econCSV(){const{cur,cand}=state.econ;const k=['ts','h','A','q','thr','axtCult','axtSell','bioKg','rev','cost','unit','profit'];
+  return'strategy,'+k.join(',')+'\n'+[['experience',cur],['model_candidate',cand]].map(([n,x])=>n+','+k.map(kk=>isFinite(x[kk])?(+x[kk]).toFixed(4):'').join(',')).join('\n')+`\n# scenario=${SCN[state.scn].name}; simulated with uncalibrated literature-constrained parameters; costs are assumptions`;}
+
+/* ---------------- data: parsing, cleaning, fitting ---------------- */
+const ALIASES={batch:['batch_id','batch','batchid','批次','批次号'],day:['day','time_day','days','培养天数','天数','天'],bio:['biomass_g_l','biomass_g_dw_l','biomass','dw_g_l','生物量'],axt:['axt_mg_g_dw','axt_mg_g','astaxanthin_mg_g_dw','axt','虾青素含量'],temp:['temp_c','temperature','temp_mean_c','温度'],pfd:['pfd_umol_m2_s','pfd','light_pfd','par_umol_m2_s_mean','光照']};
+const FIELD_NAMES={batch:'Batch_ID（批次）*',day:'Day（天）*',bio:'Biomass_g_L（干重 g/L）*',axt:'AXT_mg_g_DW（mg/g 干重）*',temp:'温度 °C（可选）',pfd:'光照 PFD（可选）'};
+function parseCSV(text){
+  text=String(text).replace(/^﻿/,'');const lines=text.split(/\r?\n/).filter(l=>l.trim().length&&!l.trim().startsWith('#'));if(lines.length<2)return null;
+  const delim=[',',';','\t'].map(d=>[d,lines[0].split(d).length]).sort((a,b)=>b[1]-a[1])[0][0];
+  const split=l=>{const o=[];let c='',q=false;for(let i=0;i<l.length;i++){const ch=l[i];if(q){if(ch==='"'){if(l[i+1]==='"'){c+='"';i++;}else q=false;}else c+=ch;}else if(ch==='"')q=true;else if(ch===delim){o.push(c);c='';}else c+=ch;}o.push(c);return o.map(s=>s.trim());};
+  return{header:split(lines[0]),rows:lines.slice(1).map(split)};
+}
+const norm=s=>String(s).toLowerCase().replace(/[\s\-]+/g,'_').replace(/[()（）\[\]]/g,'');
+function autoMap(header){const m={};const H=header.map(norm);for(const f in ALIASES){m[f]=H.findIndex(h=>ALIASES[f].includes(h));if(m[f]<0)m[f]=H.findIndex(h=>ALIASES[f].some(a=>a.length>3&&h.startsWith(a)));}return m;}
+function numOf(s){if(s==null)return{st:'missing'};const t=String(s).trim();if(t===''||/^(na|n\/a|nan|null|none|-|—|缺失)$/i.test(t))return{st:'missing'};const v=Number(t);return isFinite(v)?{st:'ok',v}:{st:'bad',raw:t};}
+function cleanData(parsed,map){
+  const issues=[],recs=[];const req=['batch','day','bio','axt'];const miss=req.filter(f=>!(map[f]>=0));
+  if(miss.length){issues.push({lv:'red',line:'—',msg:'缺少必需字段映射：'+miss.map(f=>FIELD_NAMES[f]).join('、')+'。请在字段映射中指定。'});return{issues,recs:[],fatal:true};}
+  let nMissB=0,nMissA=0;
+  parsed.rows.forEach((r,ri)=>{const line=ri+2;const b=(r[map.batch]||'').trim();if(!b){issues.push({lv:'yellow',line,msg:'缺少 Batch_ID，该行已忽略'});return;}
+    const dy=numOf(r[map.day]);if(dy.st!=='ok'||dy.v<0){issues.push({lv:'red',line,msg:`Day 值“${esc(r[map.day]??'')}”无效，该行已忽略`});return;}
+    const rec={batch:b,day:dy.v,bio:null,axt:null,temp:null,pfd:null,line};
+    const B=numOf(r[map.bio]);if(B.st==='ok'){if(B.v<0)issues.push({lv:'red',line,msg:`生物量为负值（${B.v}），已置为缺失`});else if(B.v>15)issues.push({lv:'yellow',line,msg:`生物量 ${B.v} g/L 超出常见范围，疑似以 mg/L 记录，已置为缺失，请核对单位`});else rec.bio=B.v;}else if(B.st==='bad')issues.push({lv:'red',line,msg:`生物量“${esc(B.raw)}”不是数字，已置为缺失（未以 0 替代）`});else nMissB++;
+    const Q=numOf(r[map.axt]);if(Q.st==='ok'){if(Q.v<0)issues.push({lv:'red',line,msg:`虾青素含量为负值（${Q.v}），已置为缺失`});else if(Q.v>80)issues.push({lv:'yellow',line,msg:`虾青素含量 ${Q.v} mg/g 超过已报道最高水平（约 70 mg/g），已置为缺失，请核对单位`});else rec.axt=Q.v;}else if(Q.st==='bad')issues.push({lv:'red',line,msg:`虾青素含量“${esc(Q.raw)}”不是数字，已置为缺失（未以 0 替代）`});else nMissA++;
+    if(map.temp>=0){const t=numOf(r[map.temp]);if(t.st==='ok')rec.temp=t.v;}
+    if(map.pfd>=0){const t=numOf(r[map.pfd]);if(t.st==='ok')rec.pfd=t.v;}
+    recs.push(rec);});
+  // duplicates
+  const grp={};recs.forEach(r=>{const k=r.batch+'|'+r.day;(grp[k]=grp[k]||[]).push(r);});
+  const out=[];Object.values(grp).forEach(g=>{if(g.length===1){out.push(g[0]);return;}
+    const avg=k=>{const v=g.map(r=>r[k]).filter(x=>x!=null);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;};
+    issues.push({lv:'yellow',line:g.map(r=>r.line).join(','),msg:`批次 ${esc(g[0].batch)} 第 ${g[0].day} 天重复采样 ${g.length} 条，已对非缺失值取平均`});
+    out.push({batch:g[0].batch,day:g[0].day,bio:avg('bio'),axt:avg('axt'),temp:avg('temp'),pfd:avg('pfd'),line:g.map(r=>r.line).join(',')});});
+  const ax=out.map(r=>r.axt).filter(v=>v!=null);
+  if(ax.length>=3&&Math.max(...ax)<=8&&pct(ax,.5)>0.3)issues.push({lv:'yellow',line:'—',msg:'虾青素含量全部 ≤8，疑似以 % DW 录入（1% = 10 mg/g）。系统未自动换算，请确认单位。'});
+  if(nMissB||nMissA)issues.push({lv:'info',line:'—',msg:`空白值：生物量 ${nMissB} 个、虾青素 ${nMissA} 个，保持为缺失，未以 0 替代`});
+  out.sort((a,b)=>a.batch.localeCompare(b.batch)||a.day-b.day);
+  return{issues,recs:out,fatal:false};
+}
+function nelderMead(f,x0,iter=500){
+  const n=x0.length;let P=[x0.slice()];for(let i=0;i<n;i++){const x=x0.slice();x[i]+=Math.abs(x[i])>1e-3?0.25*Math.abs(x[i]):0.25;P.push(x);}
+  let V=P.map(f);
+  for(let k=0;k<iter;k++){
+    const idx=[...V.keys()].sort((a,b)=>V[a]-V[b]);P=idx.map(i=>P[i]);V=idx.map(i=>V[i]);
+    if(Math.abs(V[n]-V[0])<1e-10*(1+Math.abs(V[0])))break;
+    const c=new Array(n).fill(0);for(let i=0;i<n;i++)for(let j=0;j<n;j++)c[j]+=P[i][j]/n;
+    const at=(a)=>c.map((cj,j)=>cj+a*(P[n][j]-cj));
+    const xr=at(-1),fr=f(xr);
+    if(fr<V[0]){const xe=at(-2),fe=f(xe);if(fe<fr){P[n]=xe;V[n]=fe;}else{P[n]=xr;V[n]=fr;}}
+    else if(fr<V[n-1]){P[n]=xr;V[n]=fr;}
+    else{const xc=at(0.5),fc=f(xc);if(fc<V[n]){P[n]=xc;V[n]=fc;}else{for(let i=1;i<=n;i++){P[i]=P[i].map((v,j)=>P[0][j]+0.5*(v-P[0][j]));V[i]=f(P[i]);}}}
+  }
+  let bi=0;V.forEach((v,i)=>{if(v<V[bi])bi=i;});return{x:P[bi],f:V[bi]};
+}
+const logi=(th,t)=>{const X0=Math.exp(th[0]),mu=Math.exp(th[1]),K=Math.exp(th[2]);return K/(1+((K-X0)/X0)*Math.exp(-mu*t));};
+const qfun=(th,t,t1)=>{const q0=th[0],k=Math.exp(th[1]),qm=Math.exp(th[2]);return t<t1?null:qm-(qm-q0)*Math.exp(-k*(t-t1));};
+function fitLogistic(pts){const x0=[Math.log(Math.max(pts[0].v,1e-3)),Math.log(0.3),Math.log(Math.max(...pts.map(p=>p.v))*1.2)];
+  const f=th=>{const mu=Math.exp(th[1]);if(mu>5)return 1e9;return pts.reduce((s,p)=>s+(p.v-logi(th,p.t))**2,0);};return nelderMead(f,x0).x;}
+function fitQ(pts,t1){const x0=[pts[0].v,Math.log(0.2),Math.log(Math.max(...pts.map(p=>p.v))*1.3)];
+  const f=th=>{const k=Math.exp(th[1]),qm=Math.exp(th[2]);if(k>5||qm>120)return 1e9;return pts.reduce((s,p)=>s+(p.v-qfun(th,p.t,t1))**2,0);};return nelderMead(f,x0).x;}
+function analyzeBatch(recs,pre,turn){
+  const bio=recs.filter(r=>r.bio!=null),ax=recs.filter(r=>r.axt!=null),pair=recs.filter(r=>r.bio!=null&&r.axt!=null);
+  pair.forEach(r=>{r.A=r.bio*r.axt;r.P=r.A/(r.day+pre+turn);});
+  const obsBest=pair.length?pair.reduce((a,b)=>b.P>a.P?b:a):null;
+  const span=ax.length?ax[ax.length-1].day-ax[0].day:0,canX=bio.length>=5,canQ=ax.length>=4&&span>=6;
+  let reason='';if(!ax.length)reason='无虾青素测量';else if(ax.length===1)reason='仅 1 个虾青素终点，无法判断最优采收日';else if(!canQ)reason=`虾青素测点 ${ax.length} 个、跨度 ${span} 天，需 ≥4 点且 ≥6 天`;if(!canX)reason=(reason?reason+'；':'')+`生物量有效点 ${bio.length} 个，需 ≥5`;
+  return{recs,bio,ax,pair,obsBest,predOK:canX&&canQ,reason:reason||'时序充分',pred:null};
+}
+function predictBatch(b,pre,turn){
+  const t1=b.ax[0].day,bp=b.bio.map(r=>({t:r.day,v:r.bio})),qp=b.ax.map(r=>({t:r.day,v:r.axt}));
+  const lastObs=Math.max(...b.recs.map(r=>r.day)),tEnd=lastObs+10,T=[];for(let t=Math.floor(t1);t<=tEnd;t++)T.push(t);
+  const thX=fitLogistic(bp),thQ=fitQ(qp,t1);
+  const curve=(tx,tq)=>T.map(t=>{const q=qfun(tq,t,t1);return q==null?null:logi(tx,t)*q;});
+  const A0=curve(thX,thQ),P0c=A0.map((a,i)=>a==null?null:a/(T[i]+pre+turn));
+  const rX=bp.map(p=>p.v/logi(thX,p.t)),rQ=qp.map(p=>p.v/qfun(thQ,p.t,t1));
+  const rnd=mulberry32(7),Ps=[],bestT=[];
+  for(let k=0;k<60;k++){const bx=bp.map(p=>({t:p.t,v:logi(thX,p.t)*rX[Math.floor(rnd()*rX.length)]})),bq=qp.map(p=>({t:p.t,v:qfun(thQ,p.t,t1)*rQ[Math.floor(rnd()*rQ.length)]}));
+    const tx=fitLogistic(bx),tq=fitQ(bq,t1),A=curve(tx,tq),P=A.map((a,i)=>a==null?null:a/(T[i]+pre+turn));Ps.push(P);let bi=0;P.forEach((v,i)=>{if(v>P[bi])bi=i;});bestT.push(T[bi]);}
+  const P10=T.map((_,i)=>pct(Ps.map(p=>p[i]),.1)),P50=T.map((_,i)=>pct(Ps.map(p=>p[i]),.5)),P90=T.map((_,i)=>pct(Ps.map(p=>p[i]),.9));
+  let bi=0;P50.forEach((v,i)=>{if(v>P50[bi])bi=i;});const win=T.filter((t,i)=>P50[i]>=0.95*P50[bi]);
+  const rmse=(a)=>Math.sqrt(a.reduce((s,x)=>s+x*x,0)/a.length);
+  const rmX=rmse(bp.map(p=>p.v-logi(thX,p.t))),rmQ=rmse(qp.map(p=>p.v-qfun(thQ,p.t,t1)));
+  let hold=null;
+  if(b.ax.length>=6&&b.bio.length>=6){const cut=b.ax[b.ax.length-3].day;const bx=bp.filter(p=>p.t<=cut),bq=qp.filter(p=>p.t<=cut);
+    if(bx.length>=5&&bq.length>=4){const tx=fitLogistic(bx),tq=fitQ(bq,t1);const test=b.pair.filter(r=>r.day>cut);
+      if(test.length){const ape=test.map(r=>Math.abs(logi(tx,r.day)*qfun(tq,r.day,t1)-r.A)/r.A);hold={cut,n:test.length,mape:ape.reduce((a,c)=>a+c,0)/ape.length};}}}
+  return{T,thX,thQ,t1,A0,P0:P0c,P10,P50,P90,best:T[bi],win:[win[0],win[win.length-1]],bt10:pct(bestT,.1),bt90:pct(bestT,.9),rmX,rmQ,hold,lastObs,extrap:T[bi]>lastObs+3,pMax:P50[bi]};
+}
+function loadData(text,label){
+  const parsed=parseCSV(text);
+  if(!parsed){$('#dqReport').innerHTML='<div class="empty">未能读取：至少需要表头和一行数据。</div>';return;}
+  const map=autoMap(parsed.header);state.pending={parsed,label};
+  const opts=['<option value="-1">（未映射）</option>'].concat(parsed.header.map((h,i)=>`<option value="${i}">${esc(h)}</option>`)).join('');
+  $('#mapFields').innerHTML=Object.keys(FIELD_NAMES).map(f=>`<div class="field"><label for="map_${f}">${FIELD_NAMES[f]}</label><select id="map_${f}">${opts}</select></div>`).join('');
+  Object.keys(FIELD_NAMES).forEach(f=>$('#map_'+f).value=String(map[f]));
+  $('#mapBox').hidden=false;applyMap();
+}
+function applyMap(){
+  const pd=state.pending;if(!pd)return;const map={};Object.keys(FIELD_NAMES).forEach(f=>map[f]=parseInt($('#map_'+f).value,10));
+  const c=cleanData(pd.parsed,map);
+  const order={red:0,yellow:1,info:2};c.issues.sort((a,b)=>order[a.lv]-order[b.lv]);
+  const cnt=lv=>c.issues.filter(i=>i.lv===lv).length;
+  $('#dqReport').innerHTML=`<p class="note">${esc(pd.label)}：读取 ${pd.parsed.rows.length} 行，有效记录 ${c.recs.length} 条；错误 ${cnt('red')}、警告 ${cnt('yellow')}、提示 ${cnt('info')}。</p>`+
+    (c.issues.length?`<div class="issues">${c.issues.map(i=>`<div><span class="lv ${i.lv}">${i.lv==='red'?'错误':i.lv==='yellow'?'警告':'提示'}</span><span class="mono note">行 ${esc(i.line)}</span><span>${i.msg}</span></div>`).join('')}</div>`:'<p class="lv green">未发现格式或单位问题。</p>');
+  if(c.fatal){state.data=null;$('#batchSel').innerHTML='';renderBatch();evaluateGate();renderStatus();return;}
+  const batches={};c.recs.forEach(r=>(batches[r.batch]=batches[r.batch]||[]).push(r));
+  const pre=parseFloat($('#f_pre').value)||0,turn=parseFloat($('#f_turn').value)||0;
+  const res={};for(const k in batches)res[k]=analyzeBatch(batches[k],pre,turn);
+  state.data={label:pd.label,batches:res,cur:Object.keys(res)[0],pre,turn,recs:c.recs};
+  $('#batchSel').innerHTML=Object.keys(res).map(k=>`<option value="${esc(k)}">${esc(k)}</option>`).join('');
+  $('#cleanOut').value='Batch_ID,Day,Biomass_g_L,AXT_mg_g_DW,AXT_mg_L,P_AXT_mg_L_d,Temp_C,PFD,source_lines\n'+c.recs.map(r=>{const A=r.bio!=null&&r.axt!=null?r.bio*r.axt:null;return[r.batch,r.day,r.bio??'',r.axt??'',A!=null?A.toFixed(3):'',A!=null?(A/(r.day+pre+turn)).toFixed(4):'',r.temp??'',r.pfd??'','"'+r.line+'"'].join(',');}).join('\n')+`\n# P_AXT = AXT_mg_L / (Day + ${pre} pre-days + ${turn} turnaround days); blanks are missing values, not zeros`;
+  renderBatch();evaluateGate();renderStatus();renderRobust();
+}
+function renderBatch(){
+  const d=state.data,btn=$('#btnPredict');
+  if(!d||!d.cur){btn.disabled=true;$('#predReason').textContent='';$('#batchInfo').innerHTML='';['#chDX','#chDQ','#chDP'].forEach(s=>$(s).innerHTML='<div class="empty">无数据</div>');$('#predTable').innerHTML='';return;}
+  const b=d.batches[d.cur];btn.disabled=!b.predOK;
+  $('#predReason').innerHTML=b.predOK?'时序满足预测条件。预测仅基于该批次样本内拟合，不是已验证预测。':`<b style="color:var(--warn)">预测已停用：</b>${esc(b.reason)}。仍可查看已观测最优日期。`;
+  const ob=b.obsBest;
+  $('#batchInfo').innerHTML=`<div class="kpis" style="margin-bottom:8px">${kpi('生物量有效点',b.bio.length,'个','<span class="tag t-obs">实测</span>')}${kpi('虾青素有效点',b.ax.length,'个','<span class="tag t-obs">实测</span>')}${kpi('配对测点',b.pair.length,'个，用于计算 AXT_mg_L',TAG.calc)}${kpi('已观测最优日期',ob?'第 '+ob.day+' 天':'—',ob?`${fmt(ob.P,2)} mg L⁻¹ d⁻¹（${b.pair.length===1?'唯一终点，不代表最优':'仅限已测日期'}）`:'无配对测点',TAG.calc)}</div>`;
+  const p=b.pred;
+  lineChart($('#chDX'),{points:b.bio.map(r=>({x:r.day,y:r.bio,color:C.algae})),pointName:'实测',series:p?[{x:p.T.concat(),y:p.T.map(t=>logi(p.thX,t)),color:C.algae,name:'Logistic 拟合',dash:'5 3'}]:[],xLabel:'天',yLabel:'g DW L⁻¹',h:240,w:330,empty:'无生物量数据'});
+  lineChart($('#chDQ'),{points:b.ax.map(r=>({x:r.day,y:r.axt,color:C.accent})),pointName:'实测',series:p?[{x:p.T,y:p.T.map(t=>qfun(p.thQ,t,p.t1)),color:C.accent,name:'积累曲线拟合',dash:'5 3'}]:[],xLabel:'天',yLabel:'mg g⁻¹ DW',h:240,w:330,empty:'无虾青素数据'});
+  if(p)lineChart($('#chDP'),{points:b.pair.map(r=>({x:r.day,y:r.P,color:C.fg})),pointName:'已测日期（计算）',series:[{x:p.T,y:p.P50,color:C.accent,name:'预测 P50'}],bands:[{x:p.T,lo:p.P10,hi:p.P90,color:C.accent,name:'P10–P90'}],
+    vlines:[{x:p.lastObs,label:'最后观测',color:C.grey,anchor:'end',dy:14},{x:p.best,label:'预测最优',color:C.accent,anchor:'end',dy:30}],xLabel:'天',yLabel:'mg L⁻¹ d⁻¹',h:240,w:330});
+  else lineChart($('#chDP'),{points:b.pair.map(r=>({x:r.day,y:r.P,color:C.fg})),pointName:'已测日期（计算）',marks:ob&&b.pair.length>1?[{x:ob.day,y:ob.P,color:C.accent}]:[],xLabel:'天',yLabel:'mg L⁻¹ d⁻¹',h:240,w:330,empty:'无配对测点，无法计算'});
+  $('#predTable').innerHTML=p?`<div class="tbl-wrap" style="margin-top:10px"><table><tr><th>项目</th><th>结果</th><th>说明</th></tr>
+    <tr><td>预测最优采收日 <span class="tag t-pred">预测</span></td><td class="n">第 ${p.best} 天</td><td>${p.extrap?'<span class="lv yellow">外推</span> 超出最后观测 3 天以上，门控降为黄色':'在观测范围附近'}</td></tr>
+    <tr><td>高产窗口（≥95% 峰值）</td><td class="n">第 ${p.win[0]}–${p.win[1]} 天</td><td>残差自助法 60 次</td></tr>
+    <tr><td>最优日不确定区间 P10–P90</td><td class="n">第 ${fmt(p.bt10,0)}–${fmt(p.bt90,0)} 天</td><td></td></tr>
+    <tr><td>峰值全周期生产率 P50</td><td class="n">${fmt(p.pMax,2)} mg L⁻¹ d⁻¹</td><td>口径：Day + 前置 ${d.pre} 天 + 周转 ${d.turn} 天</td></tr>
+    <tr><td>生物量 RMSE</td><td class="n">${fmt(p.rmX,3)} g L⁻¹</td><td>样本内</td></tr>
+    <tr><td>虾青素含量 RMSE</td><td class="n">${fmt(p.rmQ,2)} mg g⁻¹</td><td>样本内</td></tr>
+    <tr><td>同批次后段留出检验</td><td class="n">${p.hold?'MAPE '+fmt(p.hold.mape*100,1)+'%':'—'}</td><td>${p.hold?`用第 ${p.hold.cut} 天前数据拟合，预测其后 ${p.hold.n} 个配对点；不等于独立批次验证`:'测点不足，未做'}</td></tr></table></div>`:'';
+}
+
+/* ---------------- sample data (synthetic) ---------------- */
+function synthBatch(id,ts,Ir,seed,{axtDays,bioDays}){
+  const S={...state.S,mode:'same',Ir,ts},p=params(S),sim=simulate(p,S,buildProfile('normal',S),ts,RMAX),rnd=mulberry32(seed),noise=s=>1+s*gauss(rnd),rows=[];
+  const days=[...new Set(bioDays.concat(axtDays))].sort((a,b)=>a-b);
+  days.forEach(d=>{const b=bioDays.includes(d)?(sim.X[d]*noise(.05)).toFixed(3):'';const a=axtDays.includes(d)?(sim.q[d]*noise(.07)).toFixed(2):'';rows.push([id,d,b,a,d<ts?S.Tg:S.Tr,d<ts?S.Ig:Ir,d<ts?'green':'red','synthetic_demo'].join(','));});
+  return rows;
+}
+const HDR='Batch_ID,Day,Biomass_g_L,AXT_mg_g_DW,Temp_C,PFD_umol_m2_s,Stage,Data_Type';
+function sampleA(){const ev=n=>[...Array(n).keys()].map(i=>i*2);return['# 合成示例数据：由本 Demo 模型加 5–7% 随机噪声生成，非实测',HDR].concat(
+  synthBatch('HP-SYN-A1',8,800,11,{bioDays:ev(13),axtDays:[8,10,12,14,16,18,20,22,24]}),
+  synthBatch('HP-SYN-A2',11,600,23,{bioDays:ev(13),axtDays:[12,14,16,18,20,22,24]})).join('\n');}
+function sampleB(){return['# 合成示例：生物量完整，但只有一个虾青素终点（第 22 天）',HDR].concat(synthBatch('HP-SYN-B1',9,800,5,{bioDays:[0,2,4,6,8,10,12,14,16,18,20,22],axtDays:[22]})).join('\n');}
+function sampleC(){return['# 合成示例：故意包含非法数字、负值、单位错误、重复采样与空值',HDR,
+ 'HP-SYN-C1,0,0.10,,22,150,green,synthetic_demo','HP-SYN-C1,2,0.17,,22,150,green,synthetic_demo','HP-SYN-C1,4,abc,,22,150,green,synthetic_demo',
+ 'HP-SYN-C1,6,0.41,,22,150,green,synthetic_demo','HP-SYN-C1,8,0.58,1.2,22,150,green,synthetic_demo','HP-SYN-C1,10,0.66,6.1,25,800,red,synthetic_demo',
+ 'HP-SYN-C1,10,0.70,6.5,25,800,red,synthetic_demo','HP-SYN-C1,12,-0.2,11.8,25,800,red,synthetic_demo','HP-SYN-C1,14,950,16.0,25,800,red,synthetic_demo',
+ 'HP-SYN-C1,16,1.05,,25,800,red,synthetic_demo','HP-SYN-C1,18,1.12,24.5,25,800,red,synthetic_demo','HP-SYN-C1,x,1.2,25,25,800,red,synthetic_demo',
+ 'HP-SYN-C1,20,1.18,260,25,800,red,synthetic_demo',',22,1.2,27,25,800,red,synthetic_demo'].join('\n');}
+const TEMPLATE=['Batch_ID,Date,Day,Stage,Event,Working_Volume_L,Dilution_Factor,Biomass_g_L,Cell_count_per_mL,AXT_mg_g_DW,AXT_method,Temp_mean_C,Temp_max_C,PFD_umol_m2_s,Light_hours,pH,NO3_mM,Microscopy_note,Contamination_flag,Equipment_flag,Operator',
+ 'EXAMPLE-001,2026-11-02,0,green,inoculate,200,,0.10,,,,22.0,24.5,150,14,7.4,17.6,正常游动细胞,0,0,示例行请删除',
+ 'EXAMPLE-001,2026-11-12,10,red,transfer,400,0.5,0.62,,1.5,HPLC,24.8,27.1,820,14,7.9,0,开始出现不动孢子,0,0,示例行请删除'].join('\n');
+
+/* ---------------- literature table ---------------- */
+const LIT=[
+ ['García-Malea 等 2009','Biotechnol Bioeng 102(2):651–657；PMID 18767188','户外管式 PBR，连续一步法','生物量 0.7 g L⁻¹ d⁻¹；虾青素 8.0 mg L⁻¹ d⁻¹；积累速率与平均辐照成正比（需氮限制）','文献实测（摘要）','模型结构依据；连续培养，不可与批次体积生产率直接比较','https://digital.csic.es/handle/10261/97969'],
+ ['Zhang, Gong & Chen 1999','J Ind Microbiol Biotech 23:691–696；doi:10.1038/sj.jim.2900685','3.7 L 混养批次 / 补料','批次 2.65 g L⁻¹、53.43 mg L⁻¹；补料 2.74 g L⁻¹、64.36 mg L⁻¹；最适光 90–360 µmol m⁻² s⁻¹','文献实测（摘要）','参数量级；混养体系，不代表自养','https://link.springer.com/article/10.1038/sj.jim.2900685'],
+ ['Giannelli 等 2015','J Biosci Bioeng 119(3):345–350；doi:10.1016/j.jbiosc.2014.09.002','20 / 23.5 / 27 / 30.5 °C 生长期','30.5 °C 最终细胞浓度为 20 °C 的 35%；27 °C 虾青素产率为 20 °C 的约 1.4 倍','文献实测（摘要）','温度响应约束（Topt、Tmax）','https://peeref.com/works/743189'],
+ ['Appl Microbiol Biotechnol 2015','doi:10.1007/s00253-015-6440-5（标题待核实）','自养条件','30–36 °C 高温抑制虾青素积累','文献结论（摘录）','红色期温度上限；需获取全文核对','https://link.springer.com/article/10.1007/s00253-015-6440-5'],
+ ['Shah 等 2016 表 4（汇总）','Front Plant Sci 7:531；doi:10.3389/fpls.2016.00531','多种 PBR，汇总 9 项研究','绿色期 0.03–0.37 g L⁻¹ d⁻¹；含量 0.8–3.8%；虾青素 0.44–17.1 mg L⁻¹ d⁻¹（含仅红色期口径）','文献汇总（二手）','合理性检查范围；口径混杂','https://pmc.ncbi.nlm.nih.gov/articles/PMC4848535/table/T4'],
+ ['Olaizola 2000（经汇总）','J Appl Phycol 12(3):499–506','25,000 L 户外 PBR + 开放池','绿色期 0.036–0.052 g L⁻¹ d⁻¹；含量 2.8–3.0%；面积产率 390 mg m⁻² d⁻¹（专利文本引用）','文献汇总（二手）','工业规模量级参照','https://pmc.ncbi.nlm.nih.gov/articles/PMC4848535/table/T4'],
+ ['Aflalo 等 2007（经汇总）','见 Shah 2016 表 4','200 L 户外管式，批次两段','绿色 0.37、红色 0.21 g L⁻¹ d⁻¹；含量 3.8%；10.1 mg L⁻¹ d⁻¹','文献汇总（二手）','户外两段法参照','https://pmc.ncbi.nlm.nih.gov/articles/PMC4848535/table/T4'],
+ ['中科院水生所 2023 年收录论文','标题 / 期刊 / DOI 待核实','商业规模管式 PBR，全年调查','光强与累计光量是最主要因素；累计 550–850 mol photons m⁻² 为较优采收区间','文献结论（摘要）','支持“光剂量驱动采收”；需全文与原始数据','https://ihb.cas.cn/sourcedb/cn/gb/lw/202306/t20230605_6772584.html'],
+ ['Wan 等 2014','Bioresour Technol 163:26–32；doi:10.1016/j.biortech.2014.04.017','贴壁培养诱导','面积产率 65.8 mg m⁻² d⁻¹，为悬浮体系 2.4 倍','文献实测（摘要）','面积口径，不能换算为体积产率','https://rrc.nbrp.jp/references/31299?lang=en'],
+ ['Tran 等 2022','Vietnam J Sci Technol Eng 61(3):61–70','2 m² 双层生物膜 PBR','干重 11.25 g m⁻² d⁻¹，含量 2.8%','文献实测（摘要）','贴壁路线参照','https://doaj.org/article/0270e21701d84c048bd26cb3e6d970ff'],
+ ['Yoo 等 2013','Bioprocess Biosyst Eng 36(6)','15 L 薄膜 PBR，户外 100 天','4.64 g L⁻¹、218.16 mg L⁻¹；生物量产率 0.05–0.07 g L⁻¹ d⁻¹','文献实测（摘要）','长周期户外参照','https://rrc.nbrp.jp/references/32378?lang=en'],
+ ['PMC7683316','磷浓度与阶梯 / 连续光胁迫研究（期刊待核实）','实验室','磷限制 + 连续光下含量达 7% DW','文献实测（摘要）','qmax 上界参照','https://pmc.ncbi.nlm.nih.gov/articles/PMC7683316'],
+ ['Bauer & Minceva 2021','Bioresour Bioprocess 8:111；doi:10.1186/s40643-021-00463-6','下游技术经济分析','假设工厂年产干藻粉 8,910 kg；离心、破壁、干燥、超临界 CO₂ 提取是成本重点','文献（TEA）','下游与回收率假设依据','https://link.springer.com/article/10.1186/s40643-021-00463-6'],
+ ['Bauer & Minceva 2019','RSC Advances（2019）','市场','天然虾青素价格约 2,500–7,000 USD/kg','文献引用','售价区间','https://pubs.rsc.org/en/content/articlepdf/2019/ra/c9ra03263k'],
+ ['Utrecht 大学 TEA','research-portal.uu.nl（作者与 DOI 待核实）','希腊 Livadeia vs 荷兰 Amsterdam','最佳情景成本 1,536 €/kg 与 6,403 €/kg；合成虾青素约 880 €/kg','文献（TEA）','选址敏感性；市场定位','https://research-portal.uu.nl/en/publications/commercial-astaxanthin-production-derived-by-green-alga-haematoco/'],
+ ['Li 等 2020','Biotechnol Adv 43:107602','综述','生产成本仍高；降本方向为选种、工艺优化、培养方式与提取技术','综述','研发方向背景','https://research.dial.uclouvain.be/handle/2078.5/214787']
+];
+
+/* ---------------- wiring ---------------- */
+function showTab(id){if(!document.getElementById('tab-'+id))id='overview';$$('.tab').forEach(s=>s.hidden=s.id!=='tab-'+id);$$('.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===id));try{history.replaceState(null,'','#'+id);}catch(e){}window.scrollTo(0,0);}
+function drawTubes(){let g='';const rows=7;for(let i=0;i<rows;i++){const y=74+i*24;g+=`<rect x="34" y="${y}" width="452" height="13" rx="6.5" style="fill:url(#tubeG)"/><rect x="34" y="${y+2}" width="452" height="3" rx="1.5" style="fill:#ffffff;fill-opacity:.22"/>`;}document.getElementById('tubes').innerHTML=g;}
+let tmr=null;const schedule=()=>{clearTimeout(tmr);tmr=setTimeout(recompute,120);};
+function init(){
+  drawTubes();
+  $$('.tabs button').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
+  $$('[data-go]').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.go)));
+  $('#simForm').addEventListener('input',schedule);$('#simForm').addEventListener('submit',e=>e.preventDefault());
+  $('#btnBestTs').addEventListener('click',()=>{$('#f_ts').value=state.grid.best.ts;recompute();});
+  $('#scnChips').innerHTML=Object.entries(SCN).map(([k,v])=>`<button type="button" class="chipbtn" data-scn="${k}" aria-pressed="false">${v.name}</button>`).join('');
+  $$('#scnChips .chipbtn').forEach(b=>b.addEventListener('click',()=>{state.scn=b.dataset.scn;state.flags={...SCN[state.scn].flags};syncFlags();recompute();}));
+  const flagChange=()=>{state.flags={gap:parseInt($('#f_gap').value,10),offline:$('#f_offline').checked,fault:$('#f_fault').checked,contam:$('#f_contam').checked};$('#o_gap').textContent=state.flags.gap;evaluateGate();renderAll();};
+  ['#f_gap','#f_offline','#f_fault','#f_contam'].forEach(s=>$(s).addEventListener('input',flagChange));
+  $('#btnCopyAudit').addEventListener('click',e=>copyText('time,scenario,ts,level,triggered\n'+state.audit.map(r=>[r.time,r.scn,r.ts,r.lv,'"'+r.rules.replace(/"/g,'""')+'"'].join(',')).join('\n'),e.currentTarget));
+  // data
+  $('#fileIn').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{$('#csvText').value=rd.result;loadData(rd.result,f.name);};rd.readAsText(f);e.target.value='';});
+  $('#btnSampleA').addEventListener('click',()=>{const t=sampleA();$('#csvText').value=t;loadData(t,'示例 A（合成）');});
+  $('#btnSampleB').addEventListener('click',()=>{const t=sampleB();$('#csvText').value=t;loadData(t,'示例 B（合成）');});
+  $('#btnSampleC').addEventListener('click',()=>{const t=sampleC();$('#csvText').value=t;loadData(t,'示例 C（合成）');});
+  $('#btnParse').addEventListener('click',()=>loadData($('#csvText').value,'粘贴的数据'));
+  $('#btnApplyMap').addEventListener('click',applyMap);
+  ['#f_pre','#f_turn'].forEach(s=>$(s).addEventListener('change',()=>{if(state.pending)applyMap();}));
+  $('#batchSel').addEventListener('change',e=>{state.data.cur=e.target.value;renderBatch();evaluateGate();renderStatus();renderRobust();});
+  $('#btnPredict').addEventListener('click',()=>{const d=state.data,b=d.batches[d.cur];if(!b.predOK)return;b.pred=predictBatch(b,d.pre,d.turn);renderBatch();evaluateGate();renderStatus();renderRobust();});
+  $('#btnCopyClean').addEventListener('click',e=>copyText($('#cleanOut').value,e.currentTarget));
+  $('#tplOut').value=TEMPLATE;$('#btnCopyTpl').addEventListener('click',e=>copyText(TEMPLATE,e.currentTarget));
+  // econ
+  $('#econForm').addEventListener('input',()=>renderEcon());$('#econForm').addEventListener('submit',e=>e.preventDefault());
+  $('#btnSaveScn').addEventListener('click',()=>{const{cur,cand}=state.econ;state.saved.unshift({time:new Date().toLocaleString('zh-CN',{hour12:false}),scn:SCN[state.scn].name,cur:`第${cur.ts}/${cur.h}天`,cand:`第${cand.ts}/${cand.h}天`,kg:`${fmt(cur.axtSell,1)} → ${fmt(cand.axtSell,1)}`,pf:`${fmt(cur.profit,0)} → ${fmt(cand.profit,0)}`});state.saved=state.saved.slice(0,20);store.set('axt_saved',state.saved);renderEcon();});
+  $('#savedTbl').addEventListener('click',e=>{const i=e.target.dataset?.del;if(i==null)return;state.saved.splice(+i,1);store.set('axt_saved',state.saved);renderEcon();});
+  $('#btnCopyEcon').addEventListener('click',e=>copyText(econCSV(),e.currentTarget));
+  // evidence
+  $('#paramTbl').innerHTML='<tr><th>符号</th><th>默认值</th><th>单位</th><th>含义</th><th>依据</th><th>状态</th></tr>'+PARAM_META.map(m=>{const v=m[0]==='Topt'?`${P0.Topt} / ${P0.Tmax}`:m[0]==='ToptA'?`${P0.ToptA} / ${P0.TmaxA}`:P0[m[0]];return`<tr><td class="mono">${m[1]}</td><td class="n">${v}</td><td>${m[2]}</td><td>${m[3]}</td><td>${m[4]}</td><td><span class="tag ${m[5]==='文献约束'?'t-lit':'t-assume'}">${m[5]}</span></td></tr>`;}).join('');
+  $('#litTbl').innerHTML='<tr><th>来源</th><th>出处</th><th>体系</th><th>关键数值 / 结论</th><th>数据类型</th><th>在模型中的用途与限制</th></tr>'+LIT.map(r=>`<tr><td><a href="${r[6]}" target="_blank" rel="noopener">${r[0]}</a></td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td><span class="tag t-lit">${r[4]}</span></td><td>${r[5]}</td></tr>`).join('');
+  syncFlags();recompute();
+  const h=(location.hash||'').replace('#','');showTab(h||'overview');
+  window.addEventListener('hashchange',()=>{const t=(location.hash||'').replace('#','');if(t&&!document.getElementById('tab-'+t)?.hidden===false)showTab(t);});
+}
+function syncFlags(){$('#f_gap').value=state.flags.gap;$('#o_gap').textContent=state.flags.gap;$('#f_offline').checked=state.flags.offline;$('#f_fault').checked=state.flags.fault;$('#f_contam').checked=state.flags.contam;}
+init();
+</script>
+
+</body>
+</html>
